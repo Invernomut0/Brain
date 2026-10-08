@@ -75,6 +75,7 @@ class StatusReport:
             report = await self._generate(f)
             report |= {"fingerprint": fp, "ts": time.time()}
             self.b.db.kv_set(KV_KEY, report)
+            await self.b.bus.publish("status.report", None, progress=report["progress"], source=report["source"])
             return {"facts": f, "report": report, "stale": False}
 
     async def _generate(self, f: dict) -> dict:

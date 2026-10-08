@@ -407,6 +407,7 @@ class Orchestrator:
         b = self.b
         facts, reopened = await self.route_user_message(text)
         asyncio.create_task(b.memory.add("user", f"Lorenzo ha detto: {text}", ["user"], 0.9))  # off the reply's critical path
+        wiki_ctx = await b.wiki.context(text, 3, 500)
 
         prompt = (
             "Sei Brain e stai parlando con Lorenzo, il tuo creatore. Rispondi in modo breve, diretto e ONESTO, nella sua lingua.\n"
@@ -414,6 +415,7 @@ class Orchestrator:
             "e dire cosa farai nei prossimi cicli (che e' una promessa, non un risultato).\n"
             f"FATTI REALMENTE ACCADUTI: {'; '.join(facts) or 'nessuna azione ancora eseguita'}\n\n"
             f"SELF-MODEL:\n{b.selfmodel.render()}\n\nOBIETTIVI:\n{b.goals.summary(10)}\n\nCHAT:\n{self._recent_chat(8)}\n\n"
+            + (f"WIKI (pagine pertinenti, conoscenza gia' compilata):\n{wiki_ctx}\n\n" if wiki_ctx else "") +
             f'Lorenzo: {text}\n\nRispondi SOLO JSON: {{"reply": "...", "new_goal": null | {{"title": "...", "description": "...", "priority": 0-1}}}}. '
             "Crea new_goal solo se Lorenzo chiede qualcosa di nuovo e nessun obiettivo esistente lo copre."
         )

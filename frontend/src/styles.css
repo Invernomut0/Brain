@@ -161,6 +161,53 @@ body::before {
 .status-stats b { display: block; font-size: 18px; letter-spacing: 0; color: var(--txt); }
 .status-cols ul { margin: 6px 0 0; padding-left: 16px; font-size: 12px; line-height: 1.45; color: #c7cdf0; }
 .status-cols .dim { color: var(--dim); list-style: none; margin-left: -16px; }
+
+/* wiki */
+.wiki { position: absolute; inset: 0; overflow: hidden; }
+.wiki svg { display: block; }
+.wiki-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; max-width: 420px; margin: auto; }
+.wiki-bar { position: absolute; left: 14px; top: 14px; right: 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; pointer-events: none; z-index: 6; }
+.wiki-bar > * { pointer-events: auto; }
+.wiki-bar input { width: 220px; background: rgba(8, 10, 24, 0.82); border: 1px solid var(--panel-b); color: var(--txt); padding: 6px 10px; border-radius: 9px; font-size: 12px; outline: none; backdrop-filter: blur(6px); }
+.wiki-bar input:focus { border-color: var(--violet); }
+.wiki-bar .btn.mini { background: rgba(8, 10, 24, 0.82); }
+.wiki-bar .btn.mini.on { border-color: var(--violet); color: var(--txt); }
+.seg { display: inline-flex; border: 1px solid var(--panel-b); border-radius: 9px; overflow: hidden; background: rgba(8, 10, 24, 0.82); }
+.seg button { cursor: pointer; border: 0; background: transparent; color: var(--dim); padding: 5px 10px; font-size: 11px; }
+.seg button.on { background: rgba(139, 123, 255, 0.28); color: var(--txt); }
+.seg button:disabled { opacity: 0.35; cursor: default; }
+.wiki-hits { position: absolute; left: 14px; top: 52px; width: 300px; max-height: 260px; overflow: auto; background: rgba(8, 10, 24, 0.94); border: 1px solid var(--panel-b); border-radius: 10px; z-index: 7; }
+.wiki-hits div { padding: 7px 10px; cursor: pointer; font-size: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+.wiki-hits div:hover { background: rgba(139, 123, 255, 0.16); }
+.wiki-hits small { display: block; color: var(--dim); font-size: 10px; margin-top: 2px; }
+.wiki-foot { position: absolute; left: 14px; bottom: 10px; display: flex; flex-direction: column; gap: 6px; z-index: 6; max-width: 62%; pointer-events: none; }
+.wiki-foot > * { pointer-events: auto; }
+.wiki-stats { font-size: 10px; color: var(--dim); letter-spacing: 0.04em; }
+.wiki-stats .warn { color: var(--amber); }
+.wiki-stats .note { color: var(--green); }
+.wiki-legend { display: flex; flex-wrap: wrap; gap: 4px 6px; }
+.wiki-legend button { cursor: pointer; display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--panel-b); background: rgba(8, 10, 24, 0.82); color: #c7cdf0; padding: 2px 9px; border-radius: 999px; font-size: 10px; }
+.wiki-legend button.off { opacity: 0.4; text-decoration: line-through; }
+.wiki-legend i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.wiki-reader { position: absolute; right: 0; top: 0; bottom: 0; width: min(420px, 46%); overflow: auto; padding: 14px 16px 18px; background: rgba(8, 10, 24, 0.93); border-left: 1px solid var(--panel-b); backdrop-filter: blur(10px); z-index: 8; }
+.wiki-reader .x { position: absolute; right: 10px; top: 6px; border: 0; background: transparent; color: var(--dim); font-size: 20px; cursor: pointer; }
+.wiki-reader h3 { margin: 6px 0 8px; font-size: 16px; }
+.wr-head { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); display: flex; align-items: center; gap: 8px; }
+.wr-head .tag { border: 1px solid var(--panel-b); padding: 1px 7px; border-radius: 999px; text-transform: none; letter-spacing: 0; }
+.wr-meta { margin-top: 12px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.06); font-size: 11px; color: var(--dim); line-height: 1.6; }
+.md { font-size: 12.5px; line-height: 1.55; color: #d4d9f7; }
+.md h2, .md h3, .md h4, .md h5 { margin: 14px 0 4px; font-size: 13px; color: var(--violet); letter-spacing: 0.04em; }
+.md h2 { font-size: 15px; color: var(--txt); }
+.md p { margin: 6px 0; }
+.md ul, .md ol { margin: 6px 0; padding-left: 20px; }
+.md code { background: rgba(255, 255, 255, 0.08); padding: 1px 5px; border-radius: 4px; font-size: 11.5px; }
+.md pre { background: rgba(0, 0, 0, 0.4); padding: 8px 10px; border-radius: 8px; overflow: auto; font-size: 11px; white-space: pre-wrap; }
+.md blockquote { margin: 6px 0; padding-left: 10px; border-left: 3px solid var(--violet); color: var(--dim); }
+.md table { border-collapse: collapse; font-size: 11px; margin: 8px 0; display: block; overflow-x: auto; }
+.md th, .md td { border: 1px solid var(--panel-b); padding: 3px 7px; text-align: left; }
+.md a { color: var(--cyan); }
+.wl { color: var(--cyan); cursor: pointer; border-bottom: 1px dotted rgba(34, 211, 238, 0.5); }
+.wl.broken { color: var(--red); border-bottom-color: var(--red); cursor: help; }
 .toast { position: fixed; right: 18px; bottom: 18px; padding: 10px 14px; border-radius: 10px; background: rgba(255, 77, 109, 0.18); border: 1px solid var(--red); font-size: 12px; z-index: 10; }
 svg text { font-family: inherit; }
 .node-label { font-size: 10px; fill: #c7cdf0; pointer-events: none; }

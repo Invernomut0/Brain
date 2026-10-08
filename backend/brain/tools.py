@@ -181,6 +181,25 @@ async def recall(ctx: ToolContext, query: str, k: int = 5):
     return await ctx.brain.memory.search(query, int(k))
 
 
+async def wiki_search(ctx: ToolContext, query: str, k: int = 5):
+    return await ctx.brain.wiki.search(query, min(int(k), 10))
+
+
+async def wiki_read(ctx: ToolContext, id: str):
+    page = ctx.brain.wiki.read_page(str(id).strip().removesuffix(".md"))
+    if not page:
+        return f"pagina '{id}' non trovata: usa wiki_search per trovare gli id"
+    return {"id": page["id"], "title": page["title"], "body": _clip(page["body"], 5000), "links": [l["id"] or l["target"] for l in page["links"]]}
+
+
+async def wiki_note(ctx: ToolContext, title: str, body: str, summary: str = ""):
+    try:
+        pid = await ctx.brain.wiki.note(title, body, summary, f"agent:{ctx.agent.id}")
+    except ValueError as e:
+        return f"ERRORE: {e}"
+    return f"archiviata come [[{pid}]]"
+
+
 async def ask_user(ctx: ToolContext, message: str, wait: int = 120):
     reply = await ctx.brain.orchestrator.ask(ctx.agent, message, min(max(int(wait), 0), 300))
     if reply is not None:
@@ -252,6 +271,9 @@ def _builtin_tools() -> list[Tool]:
         T("list_files", "elenca i file del workspace (path relativo)", {"path": "str='.'"}, list_files),
         T("remember", "salva un fatto nella memoria a lungo termine", {"text": "str", "tags": "list?", "importance": "0-1"}, remember),
         T("recall", "cerca nella memoria a lungo termine (semantica)", {"query": "str", "k": "int=5"}, recall),
+        T("wiki_search", "cerca nella wiki di Brain (conoscenza gia' compilata: concetti, fasi, decisioni, episodi, tool); ritorna id, titolo, riassunto", {"query": "str", "k": "int=5"}, wiki_search),
+        T("wiki_read", "legge una pagina della wiki dato il suo id (es. 'concepts/sqlite')", {"id": "str"}, wiki_read),
+        T("wiki_note", "archivia nella wiki una risposta o scoperta utile (nota permanente, collegabile con [[id]])", {"title": "str", "body": "markdown", "summary": "str?"}, wiki_note),
         T("ask_user", "scrive a Lorenzo in chat e ATTENDE la sua risposta (wait secondi, default 120, max 300, 0 = non attendere); ritorna la risposta o l'avviso di mancata risposta", {"message": "str", "wait": "int=120"}, ask_user),
         T("send_message", "invia un messaggio a un altro agente vivo", {"to": "agent_id", "text": "str"}, send_message),
         T("spawn_agent", "crea un sotto-agente con un ruolo e attende il risultato", {"role": "str", "task": "str", "system_prompt": "str? (ruolo personalizzato)"}, spawn_agent),

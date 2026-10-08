@@ -35,6 +35,9 @@ CREATE TABLE IF NOT EXISTS agents(
 CREATE TABLE IF NOT EXISTS evolutions(
   id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL, kind TEXT, target TEXT, sha TEXT,
   status TEXT, reason TEXT, detail TEXT);
+CREATE TABLE IF NOT EXISTS wiki_pages(
+  id TEXT PRIMARY KEY, title TEXT, type TEXT, summary TEXT, body TEXT, updated REAL, hash TEXT,
+  managed TEXT, links TEXT, embedding TEXT);
 """
 
 

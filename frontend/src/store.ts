@@ -50,6 +50,7 @@ interface Store {
   streams: Record<string, string>
   streamTps: Record<string, number>
   thoughtsInset: number  // left px covered by the live-thoughts panel (lets 2D views avoid it)
+  wikiRev: number  // bumped on every wiki.update event so the wiki view refetches
   sys: { cpu: number; mem: number; tps: number; tokens: number; llm_busy: number; llm_queued: number; calls: number; uptime: number; live_agents: number }
   setConnected: (c: boolean) => void
   applySnapshot: (s: any) => void
@@ -64,7 +65,7 @@ export const useBrain = create<Store>((set, get) => ({
   connected: false,
   control: { state: 'idle', cycle: 0, max_cycles: 0, max_tokens: 0 },
   goals: {}, agents: {}, tools: [], customTools: [], toolCalls: {}, activity: {}, pulses: [], events: [], history: [],
-  metrics: EMPTY_METRICS, health: {}, selfmodel: null, journal: [], chat: [], evolutions: [], lessons: [], streams: {}, streamTps: {}, thoughtsInset: 0,
+  metrics: EMPTY_METRICS, health: {}, selfmodel: null, journal: [], chat: [], evolutions: [], lessons: [], streams: {}, streamTps: {}, thoughtsInset: 0, wikiRev: 0,
   sys: { cpu: 0, mem: 0, tps: 0, tokens: 0, llm_busy: 0, llm_queued: 0, calls: 0, uptime: 0, live_agents: 0 },
 
   setConnected: (connected) => set({ connected }),
@@ -181,6 +182,7 @@ export const useBrain = create<Store>((set, get) => ({
       case 'journal.entry': patch.journal = [...st.journal, { id: e.seq, ts: e.ts, kind: d.kind, text: d.text }].slice(-60); break
       case 'evolution': patch.evolutions = [{ id: e.seq, ts: e.ts, kind: d.kind, target: d.target, status: d.status, reason: d.reason }, ...st.evolutions].slice(0, 40); touch('core'); break
       case 'memory.add': addPulse('core', 'memory', '#60a5fa'); touch('memory'); break
+      case 'wiki.update': patch.wikiRev = st.wikiRev + 1; break
       case 'llm.start': if (e.agent) touch('core'); break
     }
     if (e.type !== 'llm.end' && e.type !== 'llm.start') patch.events = [...st.events, e].slice(-MAX_EVENTS)

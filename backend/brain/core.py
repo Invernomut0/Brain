@@ -21,6 +21,7 @@ from .orchestrator import Orchestrator
 from .sandbox import Sandbox
 from .selfmodel import SelfModel
 from .status import StatusReport
+from .wiki import Wiki
 from .tools import ToolRegistry
 
 
@@ -41,12 +42,15 @@ class Brain:
         self.tools = ToolRegistry(self)
         self.orchestrator = Orchestrator(self)
         self.status = StatusReport(self)
+        self.wiki = Wiki(self)
         self.started = time.time()
         self._metrics_task: asyncio.Task | None = None
         self._health: dict = {}
 
     async def startup(self) -> None:
         await self._bootstrap()
+        await self.wiki.init()
+        self.wiki.start()
         self._metrics_task = asyncio.create_task(self._metrics_loop())
         asyncio.create_task(self._warm_sandbox())
         if self.settings.autostart:
@@ -93,12 +97,14 @@ class Brain:
         self.control.cycle = 0
         await self.control.set_state("idle")
         await self._bootstrap()
+        await self.wiki.reset()
         await self.bus.publish("system.reset", None)
         if self.settings.autostart:
             await self.start()
 
     async def shutdown(self) -> None:
         await self.kill()
+        await self.wiki.stop()
         await self.sandbox.close()
         if self._metrics_task:
             self._metrics_task.cancel()

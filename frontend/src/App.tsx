@@ -12,10 +12,11 @@ import { Neural3D } from './components/Neural3D'
 import { Neural2D, ViewOff } from './components/Neural2D'
 import { SelfModelPanel } from './components/SelfModelPanel'
 import { ToolGalaxy } from './components/ToolGalaxy'
+import { WikiView } from './components/Wiki'
 import { useBrainSocket } from './hooks/useBrainSocket'
 import { ROLE_COLOR } from './store'
 
-const STAGE = { neural: 'Rete neurale', goals: 'Albero obiettivi', tools: 'Agenti ↔ Tool' } as const
+const STAGE = { neural: 'Rete neurale', goals: 'Albero obiettivi', tools: 'Agenti ↔ Tool', wiki: 'Wiki' } as const
 const VMODE_KEY = 'brain.viewmode'
 type VMode = '3d' | '2d' | 'off'
 const VMODES: { id: VMode; label: string; hint: string }[] = [
@@ -27,7 +28,11 @@ const DOCK = { feed: 'Eventi live', chat: 'Chat', status: 'Stato', memories: 'Ri
 
 export default function App() {
   useBrainSocket()
-  const [stage, setStage] = useState<keyof typeof STAGE>('neural')
+  const [stage, setStageState] = useState<keyof typeof STAGE>(() => {
+    const h = location.hash.slice(1)
+    return h in STAGE ? (h as keyof typeof STAGE) : 'neural'
+  })
+  const setStage = (s: keyof typeof STAGE) => { history.replaceState(null, '', `#${s}`); setStageState(s) }
   const [dock, setDock] = useState<keyof typeof DOCK>('feed')
   const [vmode, setVmodeState] = useState<VMode>(() => (['3d', '2d', 'off'].includes(localStorage.getItem(VMODE_KEY) ?? '') ? localStorage.getItem(VMODE_KEY) as VMode : '3d'))
   const setVmode = (m: VMode) => { localStorage.setItem(VMODE_KEY, m); setVmodeState(m) }
@@ -49,9 +54,11 @@ export default function App() {
             </div>
           )}
         </div>
-        <div className="legend">
-          {Object.entries(ROLE_COLOR).slice(0, 6).map(([r, c]) => <span key={r}><i style={{ background: c }} />{r}</span>)}
-        </div>
+        {stage !== 'wiki' && (
+          <div className="legend">
+            {Object.entries(ROLE_COLOR).slice(0, 6).map(([r, c]) => <span key={r}><i style={{ background: c }} />{r}</span>)}
+          </div>
+        )}
         <div className="view">
           <ErrorBoundary key={`${stage}-${vmode}`} name={STAGE[stage]}>
             {stage === 'neural' && vmode === '3d' && <Neural3D />}
@@ -59,10 +66,11 @@ export default function App() {
             {stage === 'neural' && vmode === 'off' && <ViewOff onPick={setVmode} />}
             {stage === 'goals' && <GoalTree />}
             {stage === 'tools' && <ToolGalaxy />}
+            {stage === 'wiki' && <WikiView />}
           </ErrorBoundary>
         </div>
         {stage === 'neural' && vmode !== 'off' && <LiveThoughts />}
-        <StartOverlay />
+        {stage !== 'wiki' && <StartOverlay />}
       </main>
       <aside style={{ gridColumn: 3, gridRow: 2, display: 'flex', minHeight: 0 }}>
         <MetricsPanel />

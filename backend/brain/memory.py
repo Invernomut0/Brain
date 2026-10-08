@@ -87,6 +87,19 @@ class Memory:
                 out.append({**self._public(r), "score": h["score"]})
         return out[:limit]
 
+    async def backfill_embeddings(self, limit: int = 50, force: bool = False) -> int:
+        """Vectorise memories saved while the embedding model was unavailable."""
+        rows = self.db.query("SELECT id,text FROM memories WHERE embedding IS NULL ORDER BY id DESC LIMIT ?", (limit,))
+        if not rows:
+            return 0
+        try:
+            vecs = await self.llm.embed([r["text"][:2000] for r in rows], force=force)
+        except Exception:  # noqa: BLE001 - retried on the next pass
+            return 0
+        for r, v in zip(rows, vecs):
+            self.db.execute("UPDATE memories SET embedding=? WHERE id=?", (json.dumps(v), r["id"]))
+        return len(rows)
+
     def journal_add(self, kind: str, text: str) -> int:
         return self.db.execute("INSERT INTO journal(ts,kind,text) VALUES(?,?,?)", (time.time(), kind, text))
 

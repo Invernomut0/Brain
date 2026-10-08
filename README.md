@@ -65,6 +65,21 @@ Brain waits for you to press **▶ Avvia** (set `BRAIN_AUTOSTART=true` to start 
 
 **Dashboard tabs**: *Stato* tells the project in 5 lines and shows the estimated progress toward the main goal with what is done and what is missing (the narrative is written by the model from DB facts and cached until the data changes; when the model is unavailable the bar falls back to the measurable awareness index). *Ricordi* lists long-term memories, filterable by kind and searchable (semantic when embeddings are loaded, keywords otherwise).
 
+### Wiki (LLM Wiki pattern)
+Brain keeps a persistent, interlinked **markdown wiki** of what it knows about itself, after [Karpathy's LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f): knowledge is compiled once and kept current instead of being re-derived from raw data on every question. It lives in `data/wiki/` (plain files with frontmatter and `[[wikilinks]]`: open the folder in Obsidian to browse or edit; `managed: user` pages are never overwritten).
+
+| Layer | What |
+|---|---|
+| Raw sources | the SQLite database (events, memories, journal, goals, tools): read-only for the wiki |
+| Wiki | `status.md`, `lessons.md`, `evolution.md`, `self-model.md`, `episodes/goal-N.md`, `tools/<name>.md` (regenerated from the database, `managed: auto`) and `concepts/ entities/ insights/ decisions/ phases/ notes/` (written by the librarian, `managed: llm`) |
+| Schema | `SCHEMA.md` (conventions), `index.md` (catalogue by category), `log.md` (append-only, `## [date] kind \| title`), `lint.md` (health check) |
+
+* **Ingest**: while Brain runs, every ~8 new memories/journal entries (or 30 min) the librarian prompt folds them into existing or new pages, flags contradictions (`⚠ Contraddizione:`) and *phases* of the journey, and logs it. Database-derived pages are rebuilt a few seconds after goals, tools, lessons or evolutions change.
+* **Query**: agents have `wiki_search`, `wiki_read`, `wiki_note` (useful answers are filed back as notes) and get the most relevant pages injected when they start a task; the chat reply also sees them.
+* **Lint**: broken links (= pages to create, fed back to the librarian), orphans, stale pages, open contradictions, pages without vectors.
+* **Vectors**: pages (and memories) are embedded with `BRAIN_EMBED_MODEL` for semantic search and for the **semantic map**. LM Studio normally keeps one JIT model loaded: loading the embedding model can evict the chat model. With `BRAIN_EMBEDDINGS=auto` vectors are only computed/queried while the embedding model is already loaded, so for full semantic search load **both** models in LM Studio (and disable auto-evict). The **◈ Vettori** button forces the computation once (LM Studio loads the model, then Brain reloads the chat model).
+* **Wiki tab** (main stage): 2D map of the pages. *Collegamenti* = force layout by links; *Mappa semantica* = pages positioned by the PCA of their vectors (similar meaning = close). Click a node to read the page (links are clickable), legend chips hide types, search highlights matches; **Indice / Log / Salute / Schema** open the special files and **↻ Aggiorna wiki** syncs and ingests on demand.
+
 **LM Studio robustness**: if the model gets unloaded mid-request Brain waits for it to reload (a 1-token request triggers LM Studio's JIT loader) and retries. Embeddings are only used when their model is already loaded (`BRAIN_EMBEDDINGS=auto`): requesting an unloaded embedding model makes LM Studio swap models and evict the chat model.
 
 ## Dashboard
@@ -73,9 +88,10 @@ Brain waits for you to press **▶ Avvia** (set `BRAIN_AUTOSTART=true` to start 
 | Rete neurale (3D / 2D / Off switch) | Mind core (size = awareness index, pulses while the LLM is busy), agents orbiting by depth, Lorenzo / Internet / Sandbox / Memory nodes, custom tools, message & tool-call pulses, live token stream |
 | Albero obiettivi | d3 goal tree, colour = status, dashed ring = predicted success probability |
 | Agenti ↔ Tool | force graph of which agent uses which tool |
+| Wiki | 2D map of the wiki (links or semantic layout) with a page reader |
 | Right panel | awareness gauge + calibration/introspection/success bars, LLM tok/s, CPU, RAM sparklines |
 | Left panel | live agents and the evolving self-model |
-| Dock | live event feed, chat with Brain, journal, tools, evolution history |
+| Dock | live event feed, chat with Brain, project status, memories, journal, lessons, tools, evolution history |
 
 ## Configuration (`.env`)
 See [.env.example](.env.example). The LM Studio model is chosen with `BRAIN_LLM_MODEL` (an id from `GET /v1/models`; if it is not loaded, Brain logs a warning and falls back to the first chat model). Also: embeddings model, budgets (`BRAIN_MAX_CYCLES`, `BRAIN_MAX_TOKENS`), reflection/evolution cadence, sandbox limits.
@@ -92,6 +108,12 @@ See [.env.example](.env.example). The LM Studio model is chosen with `BRAIN_LLM_
 | GET | `/api/v1/memories?q=&kind=&limit=&offset=` | browse memories (newest first) or search them by relevance; returns `items`, per-`kinds` counts and `total` |
 | GET | `/api/v1/status` | measurable facts (goals, tools, memories, awareness index...) plus the last stored status report and a `stale` flag |
 | POST | `/api/v1/status/refresh` | regenerate the status report: 5-line narrative, estimated progress toward the main goal, what is done and what is missing (falls back to a deterministic report if the model is unavailable) |
+| GET | `/api/v1/wiki` | wiki stats: pages, links, vectors, pending items, lint summary, embedding-model availability |
+| GET | `/api/v1/wiki/graph` | nodes (with PCA coordinates `sx`,`sy` when vectors exist) and edges |
+| GET | `/api/v1/wiki/page?id=` | one page (also `index`, `log`, `lint`, `SCHEMA`) with resolved links and backlinks |
+| GET | `/api/v1/wiki/search?q=&k=` | relevance-ranked pages (vectors when available, keywords otherwise) |
+| POST | `/api/v1/wiki/ingest` | sync database-derived pages now and fold pending memories/journal into the wiki (LLM) |
+| POST | `/api/v1/wiki/embed` | vectorise pages and memories with `BRAIN_EMBED_MODEL` (lets LM Studio load it) |
 | GET | `/api/v1/events?limit=` | recent events |
 | WS | `/ws` | snapshot, then every event (`agent.*`, `tool.*`, `goal.update`, `system.metrics`, …) |
 
@@ -103,7 +125,7 @@ cd backend && ../.venv/bin/python -m pytest -q
 
 ## Layout
 ```
-backend/brain/   core: config, db, bus, llm, sandbox, tools, agents, orchestrator, evolution, selfmodel, memory, api
+backend/brain/   core: config, db, bus, llm, sandbox, tools, agents, orchestrator, evolution, selfmodel, memory, status, wiki, api
 backend/tests/   pytest suite
 frontend/src/    dashboard (store, hooks, components)
 sandbox/         Containerfile + in-container runners (tool_runner.py, hook_runner.py); workspace/ is the agents' persistent disk

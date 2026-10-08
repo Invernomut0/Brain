@@ -17,8 +17,8 @@ if TYPE_CHECKING:
 
 ROLE_TOOLS: dict[str, list[str] | None] = {
     "executor": None,  # all tools
-    "researcher": ["web_search", "web_fetch", "http_request", "remember", "recall", "read_file", "write_file", "list_files", "python_exec"],
-    "engineer": ["python_exec", "shell_exec", "read_file", "write_file", "list_files", "create_tool", "web_search", "web_fetch", "recall", "remember"],
+    "researcher": ["web_search", "web_fetch", "http_request", "remember", "recall", "wiki_search", "wiki_read", "wiki_note", "read_file", "write_file", "list_files", "python_exec"],
+    "engineer": ["python_exec", "shell_exec", "read_file", "write_file", "list_files", "create_tool", "web_search", "web_fetch", "recall", "remember", "wiki_search", "wiki_read"],
     "evolver": ["propose_prompt", "propose_hook"],
 }
 
@@ -69,7 +69,9 @@ class Agent:
         )
         names = ROLE_TOOLS.get(self.role)
         allowed = b.tools.all(names)
-        msgs: list[dict] = [{"role": "system", "content": self._system()}, {"role": "user", "content": f"COMPITO:\n{self.task}"}]
+        wiki_ctx = await b.wiki.context(self.task, 3) if "wiki_search" in allowed else ""
+        task_msg = f"COMPITO:\n{self.task}" + (f"\n\nCONOSCENZA GIA' IN WIKI (wiki_read per i dettagli, non rifare cio' che e' gia' noto):\n{wiki_ctx}" if wiki_ctx else "")
+        msgs: list[dict] = [{"role": "system", "content": self._system()}, {"role": "user", "content": task_msg}]
         success, summary = False, "nessun risultato"
         format_errors = 0
         try:

@@ -60,6 +60,10 @@ class Settings:
     repo_dir: Path = field(default_factory=lambda: ROOT)
     sandbox_src: Path = field(default_factory=lambda: ROOT / "sandbox")
 
+    @property
+    def wiki_dir(self) -> Path:
+        return self.data_dir / "wiki"
+
     def ensure_dirs(self) -> None:
         self.data_dir.mkdir(parents=True, exist_ok=True)
         (self.workspace_dir / "tools").mkdir(parents=True, exist_ok=True)

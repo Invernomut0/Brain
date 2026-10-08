@@ -43,7 +43,7 @@ def create_app(brain: Brain | None = None) -> FastAPI:
         yield
         await brain.shutdown()
 
-    app = FastAPI(title="Brain", version="0.1.18", lifespan=lifespan)
+    app = FastAPI(title="Brain", version="0.1.19", lifespan=lifespan)
     app.state.brain = brain
     app.add_middleware(
         CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -115,6 +115,39 @@ def create_app(brain: Brain | None = None) -> FastAPI:
     @app.post("/api/v1/status/refresh")
     async def status_refresh():
         return await brain.status.refresh()
+
+    @app.get("/api/v1/wiki")
+    async def wiki_stats():
+        return await brain.wiki.stats()
+
+    @app.get("/api/v1/wiki/graph")
+    async def wiki_graph():
+        return brain.wiki.graph()
+
+    @app.get("/api/v1/wiki/page")
+    async def wiki_page(id: str):
+        page = brain.wiki.read_page(id.strip().removesuffix(".md"))
+        if not page:
+            raise HTTPException(404, "page not found")
+        return page
+
+    @app.get("/api/v1/wiki/search")
+    async def wiki_search(q: str, k: int = 8):
+        return await brain.wiki.search(q.strip()[:500], max(1, min(k, 30)))
+
+    @app.post("/api/v1/wiki/ingest")
+    async def wiki_ingest():
+        """Sync database-derived pages now and fold pending memories/journal entries into the wiki (LLM)."""
+        await brain.wiki.sync_all()
+        res = await brain.wiki.ingest(passes=3)
+        await brain.wiki.sync_all()
+        return {**res, "stats": await brain.wiki.stats()}
+
+    @app.post("/api/v1/wiki/embed")
+    async def wiki_embed():
+        """Vectorise pages and memories with BRAIN_EMBED_MODEL, letting LM Studio load it if needed."""
+        res = await brain.wiki.embed_pending(force=True)
+        return {**res, "stats": await brain.wiki.stats()}
 
     @app.get("/api/v1/events")
     async def events(limit: int = 200):

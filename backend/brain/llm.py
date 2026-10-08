@@ -425,9 +425,15 @@ class LLMClient:
         self._embed_ok = (time.time(), ok)
         return ok
 
-    async def embed(self, texts: list[str]) -> list[list[float]]:
-        if not await self.embeddings_available():
+    async def embed(self, texts: list[str], force: bool = False) -> list[list[float]]:
+        """Vectors from BRAIN_EMBED_MODEL. `force` skips the loaded-model guard (LM Studio may then load it just-in-time)."""
+        if not force and not await self.embeddings_available():
             raise LLMError("embeddings model not loaded: skipped to avoid swapping models in LM Studio")
-        r = await self._http.post("/embeddings", json={"model": self.s.embed_model, "input": texts}, timeout=60)
-        r.raise_for_status()
-        return [d["embedding"] for d in sorted(r.json()["data"], key=lambda d: d["index"])]
+        try:
+            r = await self._http.post("/embeddings", json={"model": self.s.embed_model, "input": texts}, timeout=120 if force else 60)
+            r.raise_for_status()
+            out = [d["embedding"] for d in sorted(r.json()["data"], key=lambda d: d["index"])]
+        except (httpx.HTTPError, KeyError, ValueError) as e:
+            raise LLMError(f"embeddings request failed: {str(e)[:200]}") from e
+        self._embed_ok = (time.time(), True)
+        return out
