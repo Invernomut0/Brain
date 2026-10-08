@@ -1,6 +1,6 @@
-"""Hook: suggerimenti extra iniettati nel Planner (evolvibile dal sistema)."""
+"""Hook: extra hints injected into the Planner (evolvable by the system)."""
 
 
 def build_context(state):
-    """Ritorna una stringa di indicazioni strategiche."""
+    """Return a string of strategic guidance."""
     return ""
