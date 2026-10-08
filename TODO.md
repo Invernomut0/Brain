@@ -13,6 +13,7 @@
 - Awareness index weights (see `selfmodel.py`) – validate they are meaningful over long runs.
 
 ## Done
+- Dashboard tabs **Stato** (5-line project story, progress toward the main goal, done/missing) and **Ricordi** (browse, filter by kind, search).
 - Backend: LLM client, event bus, SQLite, Podman sandbox, tool registry + `create_tool`, ReAct agents, orchestrator, critic, reflector, introspection probe, evolution with git rollback.
 - Frontend: 3D neural view, goal tree, tool galaxy, metrics, self-model, chat, journal, event feed.
 - Real-service test suite (LM Studio, Podman, internet).

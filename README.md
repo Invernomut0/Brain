@@ -63,6 +63,8 @@ Brain waits for you to press **▶ Avvia** (set `BRAIN_AUTOSTART=true` to start 
 
 **Talking to Brain**: chat has priority over agents: a chat request aborts in-flight agent generations (they restart automatically afterwards) and holds new agent requests until the reply is out. `ask_user` blocks the asking agent until Lorenzo answers (bounded wait). Replies reach waiting/live agents, reopen a failed goal that depended on the answer, and the chat reply always lists the real actions taken.
 
+**Dashboard tabs**: *Stato* tells the project in 5 lines and shows the estimated progress toward the main goal with what is done and what is missing (the narrative is written by the model from DB facts and cached until the data changes; when the model is unavailable the bar falls back to the measurable awareness index). *Ricordi* lists long-term memories, filterable by kind and searchable (semantic when embeddings are loaded, keywords otherwise).
+
 **LM Studio robustness**: if the model gets unloaded mid-request Brain waits for it to reload (a 1-token request triggers LM Studio's JIT loader) and retries. Embeddings are only used when their model is already loaded (`BRAIN_EMBEDDINGS=auto`): requesting an unloaded embedding model makes LM Studio swap models and evict the chat model.
 
 ## Dashboard
@@ -87,6 +89,9 @@ See [.env.example](.env.example). The LM Studio model is chosen with `BRAIN_LLM_
 | POST | `/api/v1/reset` | `{confirm: "RESET"}` - factory reset: wipes database, sandbox workspace/tools, prompts and hooks (back to defaults) |
 | POST | `/api/v1/chat` | `{text}` — talk to Brain (may create a goal) |
 | GET | `/api/v1/memory?q=` | semantic memory search |
+| GET | `/api/v1/memories?q=&kind=&limit=&offset=` | browse memories (newest first) or search them by relevance; returns `items`, per-`kinds` counts and `total` |
+| GET | `/api/v1/status` | measurable facts (goals, tools, memories, awareness index...) plus the last stored status report and a `stale` flag |
+| POST | `/api/v1/status/refresh` | regenerate the status report: 5-line narrative, estimated progress toward the main goal, what is done and what is missing (falls back to a deterministic report if the model is unavailable) |
 | GET | `/api/v1/events?limit=` | recent events |
 | WS | `/ws` | snapshot, then every event (`agent.*`, `tool.*`, `goal.update`, `system.metrics`, …) |
 

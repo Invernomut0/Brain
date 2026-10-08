@@ -12,6 +12,8 @@ const post = <T = unknown>(path: string, body?: unknown) => call<T>('POST', path
 const put = <T = unknown>(path: string, body?: unknown) => call<T>('PUT', path, body)
 
 export const api = {
+  get: <T = unknown>(path: string) => call<T>('GET', path),
+  post,
   control: (action: 'start' | 'pause' | 'resume' | 'stop' | 'kill') => post(`/control/${action}`),
   budget: (b: { max_cycles?: number; max_tokens?: number }) => post('/budget', b),
   chat: (text: string) => post('/chat', { text }),

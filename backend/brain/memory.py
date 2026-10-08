@@ -59,6 +59,34 @@ class Memory:
             for s, r in scored[:k]
         ]
 
+    def _public(self, r: dict) -> dict:
+        return {"id": r["id"], "ts": r["ts"], "kind": r["kind"], "text": r["text"],
+                "tags": json.loads(r["tags"] or "[]"), "importance": r["importance"]}
+
+    def list(self, kind: str | None = None, limit: int = 100, offset: int = 0) -> list[dict]:
+        """Newest first, without the embedding blob."""
+        where, args = ("WHERE kind=?", [kind]) if kind else ("", [])
+        rows = self.db.query(
+            f"SELECT id,ts,kind,text,tags,importance FROM memories {where} ORDER BY id DESC LIMIT ? OFFSET ?",
+            (*args, limit, offset),
+        )
+        return [self._public(r) for r in rows]
+
+    def kinds(self) -> dict[str, int]:
+        return {r["kind"]: r["c"] for r in self.db.query("SELECT kind, COUNT(*) c FROM memories GROUP BY kind ORDER BY c DESC")}
+
+    async def find(self, query: str, kind: str | None = None, limit: int = 50) -> list[dict]:
+        """Relevance-ranked search (semantic when embeddings are loaded, keywords otherwise)."""
+        hits = await self.search(query, max(limit * 3, 30) if kind else limit)
+        qt = _tokens(query)
+        out = []
+        for h in hits:
+            r = self.db.one("SELECT id,ts,kind,text,tags,importance FROM memories WHERE id=?", (h["id"],))
+            # search() ranks everything; keep only hits sharing a word with the query or clearly semantically close
+            if r and (not kind or r["kind"] == kind) and (qt & _tokens(r["text"]) or h["score"] >= 0.45):
+                out.append({**self._public(r), "score": h["score"]})
+        return out[:limit]
+
     def journal_add(self, kind: str, text: str) -> int:
         return self.db.execute("INSERT INTO journal(ts,kind,text) VALUES(?,?,?)", (time.time(), kind, text))
 

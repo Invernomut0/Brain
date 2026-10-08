@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { AgentList } from './components/AgentList'
 import { Chat, EventFeed, EvolutionView, Journal, LessonsView, ToolsView } from './components/Dock'
+import { MemoriesView, StatusView } from './components/Knowledge'
 import { GoalTree } from './components/GoalTree'
 import { Header } from './components/Header'
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -22,7 +23,7 @@ const VMODES: { id: VMode; label: string; hint: string }[] = [
   { id: '2d', label: '2D', hint: 'Vista 2D leggera, senza WebGL' },
   { id: 'off', label: 'Off', hint: 'Spegne la vista grafica: nessun uso di GPU' },
 ]
-const DOCK = { feed: 'Eventi live', chat: 'Chat', journal: 'Giornale', lessons: 'Lezioni', tools: 'Tool', evo: 'Evoluzione' } as const
+const DOCK = { feed: 'Eventi live', chat: 'Chat', status: 'Stato', memories: 'Ricordi', journal: 'Giornale', lessons: 'Lezioni', tools: 'Tool', evo: 'Evoluzione' } as const
 
 export default function App() {
   useBrainSocket()
@@ -74,6 +75,8 @@ export default function App() {
           <ErrorBoundary key={dock} name={DOCK[dock]}>
             {dock === 'feed' && <EventFeed />}
             {dock === 'chat' && <Chat />}
+            {dock === 'status' && <StatusView />}
+            {dock === 'memories' && <MemoriesView />}
             {dock === 'journal' && <Journal />}
             {dock === 'lessons' && <LessonsView />}
             {dock === 'tools' && <ToolsView />}

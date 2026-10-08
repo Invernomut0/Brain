@@ -137,6 +137,30 @@ body::before {
 .card { padding: 8px 10px; border-radius: 10px; border: 1px solid var(--panel-b); background: rgba(255, 255, 255, 0.03); font-size: 12px; }
 .card b { color: var(--amber); }
 .card small { color: var(--dim); display: block; margin-top: 3px; }
+
+/* memories + status tabs */
+.mem { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.mem-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 0 14px 8px; }
+.mem-bar input { flex: 1; min-width: 160px; max-width: 320px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--panel-b); color: var(--txt); padding: 6px 10px; border-radius: 9px; font-size: 12px; outline: none; }
+.mem-bar input:focus { border-color: var(--violet); }
+.pill { cursor: pointer; border: 1px solid var(--panel-b); background: rgba(255, 255, 255, 0.03); color: var(--dim); padding: 3px 10px; border-radius: 999px; font-size: 11px; }
+.pill.on { color: var(--txt); border-color: var(--c, var(--violet)); background: rgba(255, 255, 255, 0.08); }
+.kind { color: var(--c, var(--dim)); font-weight: 700; }
+.status-head { display: flex; align-items: center; gap: 16px; padding: 4px 0 10px; }
+.status-pct { display: flex; flex-direction: column; align-items: center; min-width: 78px; }
+.status-pct b { font-size: 30px; line-height: 1; background: linear-gradient(90deg, var(--violet), var(--cyan)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.status-pct span { font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); margin-top: 4px; }
+.status-main { flex: 1; min-width: 0; }
+.status-main small { color: var(--dim); font-size: 10px; }
+.status-goal { font-size: 12px; color: #c7cdf0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bar.big { height: 10px; margin: 6px 0; }
+.status-lines { margin: 0 0 10px; padding-left: 20px; font-size: 13px; line-height: 1.55; color: #dfe3ff; }
+.status-lines li::marker { color: var(--violet); font-weight: 700; }
+.status-stats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.status-stats div { flex: 1; min-width: 70px; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--panel-b); background: rgba(255, 255, 255, 0.03); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); }
+.status-stats b { display: block; font-size: 18px; letter-spacing: 0; color: var(--txt); }
+.status-cols ul { margin: 6px 0 0; padding-left: 16px; font-size: 12px; line-height: 1.45; color: #c7cdf0; }
+.status-cols .dim { color: var(--dim); list-style: none; margin-left: -16px; }
 .toast { position: fixed; right: 18px; bottom: 18px; padding: 10px 14px; border-radius: 10px; background: rgba(255, 77, 109, 0.18); border: 1px solid var(--red); font-size: 12px; z-index: 10; }
 svg text { font-family: inherit; }
 .node-label { font-size: 10px; fill: #c7cdf0; pointer-events: none; }

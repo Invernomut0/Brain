@@ -43,7 +43,7 @@ def create_app(brain: Brain | None = None) -> FastAPI:
         yield
         await brain.shutdown()
 
-    app = FastAPI(title="Brain", version="0.1.16", lifespan=lifespan)
+    app = FastAPI(title="Brain", version="0.1.17", lifespan=lifespan)
     app.state.brain = brain
     app.add_middleware(
         CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -101,6 +101,20 @@ def create_app(brain: Brain | None = None) -> FastAPI:
     @app.get("/api/v1/memory")
     async def memory(q: str, k: int = 5):
         return await brain.memory.search(q, k)
+
+    @app.get("/api/v1/memories")
+    async def memories(q: str = "", kind: str | None = None, limit: int = 100, offset: int = 0):
+        limit = max(1, min(limit, 500))
+        items = await brain.memory.find(q.strip()[:500], kind, limit) if q.strip() else brain.memory.list(kind, limit, max(offset, 0))
+        return {"items": items, "kinds": brain.memory.kinds(), "total": brain.memory.count()}
+
+    @app.get("/api/v1/status")
+    async def status():
+        return brain.status.current()
+
+    @app.post("/api/v1/status/refresh")
+    async def status_refresh():
+        return await brain.status.refresh()
 
     @app.get("/api/v1/events")
     async def events(limit: int = 200):

@@ -20,6 +20,7 @@ from .memory import Memory
 from .orchestrator import Orchestrator
 from .sandbox import Sandbox
 from .selfmodel import SelfModel
+from .status import StatusReport
 from .tools import ToolRegistry
 
 
@@ -39,6 +40,7 @@ class Brain:
         self.control = Control(self.db, self.bus, self.settings.max_cycles, self.settings.max_tokens)
         self.tools = ToolRegistry(self)
         self.orchestrator = Orchestrator(self)
+        self.status = StatusReport(self)
         self.started = time.time()
         self._metrics_task: asyncio.Task | None = None
         self._health: dict = {}
