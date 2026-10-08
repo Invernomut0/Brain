@@ -54,6 +54,7 @@ cd frontend && npm install && npm run build && cd ..
 ## Run
 ```bash
 ./run.sh                        # backend + built dashboard on http://127.0.0.1:8000
+./stop.sh                       # kill switch + stop the server + remove sandbox containers
 # development: backend `cd backend && ../.venv/bin/python -m brain.main`, frontend `cd frontend && npm run dev` (http://localhost:5173)
 ```
 Brain starts its autonomous loop by itself when the server boots (set `BRAIN_AUTOSTART=false` to start manually with **▶ Avvia**).
