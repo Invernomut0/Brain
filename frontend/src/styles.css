@@ -152,6 +152,31 @@ svg text { font-family: inherit; }
 .modal-err { margin-top: 10px; color: var(--red); font-size: 12px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
 
+/* view mode switch + 2D view */
+.vmode { display: flex; margin-left: 12px; align-self: center; border: 1px solid var(--panel-b); border-radius: 9px; overflow: hidden; }
+.vmode button { cursor: pointer; border: 0; background: transparent; color: var(--dim); padding: 4px 11px; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; }
+.vmode button:hover { color: var(--txt); }
+.vmode button.on { background: rgba(139, 123, 255, 0.28); color: var(--txt); }
+.n2d text { font-family: inherit; }
+.n2d-flow { stroke-dasharray: 3 9; animation: n2dash 1.6s linear infinite; }
+.n2d-flow.hot { animation-duration: 0.6s; }
+@keyframes n2dash { to { stroke-dashoffset: -24; } }
+.n2d-spin, .n2d-ripple, .n2d-breathe { transform-box: fill-box; transform-origin: center; }
+.n2d-spin { animation: n2spin 8s linear infinite; }
+.n2d-spin.rev { animation-duration: 14s; animation-direction: reverse; }
+@keyframes n2spin { to { transform: rotate(360deg); } }
+.n2d-ripple { animation: n2ripple 1.2s ease-out infinite; }
+@keyframes n2ripple { from { transform: scale(1); opacity: 0.9; } to { transform: scale(2.4); opacity: 0; } }
+.n2d-breathe { animation: n2breathe 2s ease-in-out infinite; }
+@keyframes n2breathe { 50% { transform: scale(1.12); } }
+.view-off { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; color: var(--dim); padding: 20px; }
+.view-off-title { font-size: 13px; letter-spacing: 0.25em; text-transform: uppercase; color: var(--txt); }
+.view-off-sub { font-size: 12px; }
+.view-off-stats { font-size: 12px; color: #c7cdf0; font-variant-numeric: tabular-nums; }
+.view-off-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 14px; font-size: 11px; font-weight: 600; max-width: 560px; }
+.view-off-list small { color: var(--dim); font-weight: 400; }
+.view-off-actions { display: flex; gap: 10px; margin-top: 10px; }
+
 /* main goal + start overlay */
 .goalcard { flex: none; }
 .goalcard h3 { align-items: center; }

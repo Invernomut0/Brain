@@ -5,6 +5,7 @@ import { OrbitControls, Stars } from '@react-three/drei'
 import { Bloom, ChromaticAberration, EffectComposer, Noise, Vignette } from '@react-three/postprocessing'
 import { roleColor, useBrain } from '../store'
 import { useNow } from '../hooks/useNow'
+import { usePageVisible } from '../hooks/usePageVisible'
 import type { AgentView } from '../types'
 import { Dust, ParticleLayer, PulseSystem, Shockwaves } from './neural/Effects'
 import { Edge, RadarFloor } from './neural/Edges'
@@ -98,9 +99,10 @@ function Scene() {
 }
 
 export function Neural3D() {
+  const visible = usePageVisible()  // no frames are rendered while the tab is hidden
   const aberration = useMemo(() => new THREE.Vector2(0.0007, 0.0009), [])
   return (
-    <Canvas camera={{ position: [0, 12, 29], fov: 50 }} dpr={[1, 2]} gl={{ antialias: true }}>
+    <Canvas camera={{ position: [0, 12, 29], fov: 50 }} dpr={[1, 2]} gl={{ antialias: true }} frameloop={visible ? 'always' : 'never'}>
       <color attach="background" args={['#03040b']} />
       <ambientLight intensity={0.3} />
       <Stars radius={110} depth={60} count={2200} factor={3} fade speed={0.5} />

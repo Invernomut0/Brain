@@ -66,7 +66,7 @@ Brain waits for you to press **▶ Avvia** (set `BRAIN_AUTOSTART=true` to start 
 ## Dashboard
 | View | What it shows |
 |---|---|
-| Rete neurale 3D | Mind core (size = awareness index, pulses while the LLM is busy), agents orbiting by depth, Lorenzo / Internet / Sandbox / Memory nodes, custom tools, message & tool-call pulses, live token stream |
+| Rete neurale (3D / 2D / Off switch) | Mind core (size = awareness index, pulses while the LLM is busy), agents orbiting by depth, Lorenzo / Internet / Sandbox / Memory nodes, custom tools, message & tool-call pulses, live token stream |
 | Albero obiettivi | d3 goal tree, colour = status, dashed ring = predicted success probability |
 | Agenti ↔ Tool | force graph of which agent uses which tool |
 | Right panel | awareness gauge + calibration/introspection/success bars, LLM tok/s, CPU, RAM sparklines |

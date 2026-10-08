@@ -8,18 +8,28 @@ import { LiveThoughts } from './components/LiveThoughts'
 import { MainGoalCard, StartOverlay } from './components/MainGoal'
 import { MetricsPanel } from './components/MetricsPanel'
 import { Neural3D } from './components/Neural3D'
+import { Neural2D, ViewOff } from './components/Neural2D'
 import { SelfModelPanel } from './components/SelfModelPanel'
 import { ToolGalaxy } from './components/ToolGalaxy'
 import { useBrainSocket } from './hooks/useBrainSocket'
 import { ROLE_COLOR } from './store'
 
-const STAGE = { neural: 'Rete neurale 3D', goals: 'Albero obiettivi', tools: 'Agenti ↔ Tool' } as const
+const STAGE = { neural: 'Rete neurale', goals: 'Albero obiettivi', tools: 'Agenti ↔ Tool' } as const
+const VMODE_KEY = 'brain.viewmode'
+type VMode = '3d' | '2d' | 'off'
+const VMODES: { id: VMode; label: string; hint: string }[] = [
+  { id: '3d', label: '3D', hint: 'Vista 3D (usa la GPU)' },
+  { id: '2d', label: '2D', hint: 'Vista 2D leggera, senza WebGL' },
+  { id: 'off', label: 'Off', hint: 'Spegne la vista grafica: nessun uso di GPU' },
+]
 const DOCK = { feed: 'Eventi live', chat: 'Chat', journal: 'Giornale', lessons: 'Lezioni', tools: 'Tool', evo: 'Evoluzione' } as const
 
 export default function App() {
   useBrainSocket()
   const [stage, setStage] = useState<keyof typeof STAGE>('neural')
   const [dock, setDock] = useState<keyof typeof DOCK>('feed')
+  const [vmode, setVmodeState] = useState<VMode>(() => (['3d', '2d', 'off'].includes(localStorage.getItem(VMODE_KEY) ?? '') ? localStorage.getItem(VMODE_KEY) as VMode : '3d'))
+  const setVmode = (m: VMode) => { localStorage.setItem(VMODE_KEY, m); setVmodeState(m) }
 
   return (
     <div className="app">
@@ -32,18 +42,25 @@ export default function App() {
       <main className="panel stage">
         <div className="tabs">
           {(Object.keys(STAGE) as (keyof typeof STAGE)[]).map((k) => <div key={k} className={`tab ${stage === k ? 'on' : ''}`} onClick={() => setStage(k)}>{STAGE[k]}</div>)}
+          {stage === 'neural' && (
+            <div className="vmode" title="Modalità di visualizzazione">
+              {VMODES.map((m) => <button key={m.id} title={m.hint} className={vmode === m.id ? 'on' : ''} onClick={() => setVmode(m.id)}>{m.label}</button>)}
+            </div>
+          )}
         </div>
         <div className="legend">
           {Object.entries(ROLE_COLOR).slice(0, 6).map(([r, c]) => <span key={r}><i style={{ background: c }} />{r}</span>)}
         </div>
         <div className="view">
-          <ErrorBoundary key={stage} name={STAGE[stage]}>
-            {stage === 'neural' && <Neural3D />}
+          <ErrorBoundary key={`${stage}-${vmode}`} name={STAGE[stage]}>
+            {stage === 'neural' && vmode === '3d' && <Neural3D />}
+            {stage === 'neural' && vmode === '2d' && <Neural2D />}
+            {stage === 'neural' && vmode === 'off' && <ViewOff onPick={setVmode} />}
             {stage === 'goals' && <GoalTree />}
             {stage === 'tools' && <ToolGalaxy />}
           </ErrorBoundary>
         </div>
-        {stage === 'neural' && <LiveThoughts />}
+        {stage === 'neural' && vmode !== 'off' && <LiveThoughts />}
         <StartOverlay />
       </main>
       <aside style={{ gridColumn: 3, gridRow: 2, display: 'flex', minHeight: 0 }}>
