@@ -35,3 +35,28 @@ async def test_requests_waiting_for_lm_studio_are_reported_as_queued(brain):
 async def _enter(llm, agent):
     async with llm._slot(agent):
         return True
+
+
+def test_rate_uses_a_sliding_window_and_ignores_time_before_the_first_token():
+    from brain.llm import _Rate
+
+    r = _Rate(window=3.0)
+    assert r.value(100.0) == 0.0  # nothing generated yet, however long the queue wait
+    for i in range(11):
+        r.add(100.0 + i * 0.1)  # 10 tokens/s
+    assert abs(r.value(101.1) - 10.0) < 0.5
+    assert r.value(110.0) == 0.0  # idle for longer than the window
+
+
+def test_aggregate_rate_sums_concurrent_streams():
+    from brain.llm import _Rate
+
+    total, a, b = _Rate(), _Rate(), _Rate()
+    for i in range(21):
+        t = 50.0 + i * 0.1
+        a.add(t)
+        b.add(t)
+        total.add(t)
+        total.add(t + 0.05)
+    assert abs(a.value(52.0) - 10.0) < 0.5 and abs(b.value(52.0) - 10.0) < 0.5
+    assert abs(total.value(52.0) - 20.0) < 1.5

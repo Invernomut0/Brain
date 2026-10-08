@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 import time
+from collections import deque
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 
@@ -24,10 +25,35 @@ class LLMResult:
     completion_tokens: int
     elapsed: float
     truncated: bool = False
+    gen_seconds: float = 0.0  # time spent generating, excluding queueing / prompt processing
 
     @property
     def tps(self) -> float:
-        return self.completion_tokens / self.elapsed if self.elapsed > 0 else 0.0
+        secs = self.gen_seconds or self.elapsed
+        return self.completion_tokens / secs if secs > 0 else 0.0
+
+
+class _Rate:
+    """Tokens/s over a short sliding window; time spent waiting for the first token does not count."""
+
+    def __init__(self, window: float = 3.0):
+        self.window = window
+        self.ts: deque[float] = deque()
+
+    def add(self, now: float) -> None:
+        self.ts.append(now)
+        self._prune(now)
+
+    def _prune(self, now: float) -> None:
+        while self.ts and now - self.ts[0] > self.window:
+            self.ts.popleft()
+
+    def value(self, now: float) -> float:
+        self._prune(now)
+        if len(self.ts) < 2:
+            return 0.0
+        span = self.ts[-1] - self.ts[0]
+        return (len(self.ts) - 1) / span if span > 0.05 else 0.0
 
 
 class LLMError(RuntimeError):
@@ -44,7 +70,7 @@ class LLMClient:
         self.calls = 0
         self.busy = 0
         self.queued = 0
-        self.live_tps: dict[int, float] = {}  # in-flight call id -> tokens/s
+        self._rate = _Rate()  # aggregate throughput across all concurrent requests
         self.streams: dict[str, dict] = {}  # agent id -> latest streamed text (for dashboard snapshots)
         self._call_seq = 0
         self._sem = asyncio.Semaphore(settings.llm_concurrency)
@@ -55,7 +81,7 @@ class LLMClient:
 
     @property
     def current_tps(self) -> float:
-        return sum(self.live_tps.values()) if self.live_tps else self.last_tps
+        return self._rate.value(time.time())
 
     @asynccontextmanager
     async def _slot(self, agent: str | None):
@@ -99,7 +125,23 @@ class LLMClient:
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": str(e)[:200]}
 
-    async def chat(
+    async def chat(self, messages: list[dict], **kw) -> LLMResult:
+        """One completion, retrying transient LM Studio failures (model unloaded / reloading, empty stream)."""
+        for attempt in range(3):
+            try:
+                res = await self._chat_once(messages, **kw)
+                if res.completion_tokens == 0:
+                    raise LLMError("LM Studio returned an empty stream")
+                return res
+            except LLMError as e:
+                transient = any(k in str(e).lower() for k in ("unloaded", "shutting down", "failed to load", "empty stream", "unreachable"))
+                if attempt == 2 or not transient:
+                    raise
+                await self.bus.publish("system.log", kw.get("agent"), level="warn", text=f"{e} - nuovo tentativo tra 8s ({attempt + 1}/2)")
+                await asyncio.sleep(8)
+        raise LLMError("unreachable")  # pragma: no cover
+
+    async def _chat_once(
         self,
         messages: list[dict],
         *,
@@ -121,10 +163,12 @@ class LLMClient:
         async with self._slot(agent):
             self.busy += 1
             self._call_seq += 1
-            cid = self._call_seq
             await self.bus.publish("llm.start", agent, purpose=purpose)
             await self.bus.publish("agent.state", agent, state="thinking", detail="")
             t0 = time.time()
+            first_tok: float | None = None
+            rate = _Rate()
+            usage_tokens = 0
             parts: list[str] = []
             thinking: list[str] = []
             finish = None
@@ -142,26 +186,36 @@ class LLMClient:
                         if chunk == "[DONE]":
                             break
                         try:
-                            choice = json.loads(chunk)["choices"][0]
-                        except (json.JSONDecodeError, KeyError, IndexError):
+                            obj = json.loads(chunk)
+                        except json.JSONDecodeError:
+                            continue
+                        if obj.get("error"):  # LM Studio reports engine failures as an in-band error event
+                            raise LLMError(f"LM Studio: {str(obj['error'].get('message', obj['error']))[:200]}")
+                        if obj.get("usage"):
+                            usage_tokens = int(obj["usage"].get("completion_tokens") or 0)
+                        try:
+                            choice = obj["choices"][0]
+                        except (KeyError, IndexError):
                             continue
                         delta = choice.get("delta", {})
                         finish = choice.get("finish_reason") or finish
                         piece = delta.get("content") or ""
                         think = delta.get("reasoning_content") or ""
+                        now = time.time()
                         if piece or think:
+                            first_tok = first_tok or now
                             n_tokens += 1
                             self.total_tokens += 1
+                            rate.add(now)
+                            self._rate.add(now)
                         if piece:
                             parts.append(piece)
                         if think:
                             thinking.append(think)
-                        now = time.time()
                         if now - last_emit > 0.4:
                             last_emit = now
                             live = "".join(parts) or "".join(thinking)
-                            tps = n_tokens / max(now - t0, 1e-3)
-                            self.live_tps[cid] = self.last_tps = tps
+                            tps = rate.value(now)
                             self.streams[agent or "?"] = {"text": live[-600:], "reasoning": not parts, "tps": tps, "tokens": n_tokens}
                             await self.bus.publish(
                                 "agent.stream", agent, text=live[-600:], reasoning=not parts, tokens=n_tokens, tps=tps,
@@ -170,10 +224,13 @@ class LLMClient:
                 raise LLMError(f"LM Studio unreachable: {e}") from e
             finally:
                 self.busy -= 1
-                self.live_tps.pop(cid, None)
                 self.streams.pop(agent or "?", None)
-            elapsed = time.time() - t0
-        res = LLMResult("".join(parts), n_tokens, elapsed, truncated=finish == "length")
+            end = time.time()
+            elapsed = end - t0
+        if usage_tokens and usage_tokens != n_tokens:  # the server's own count is authoritative
+            self.total_tokens += usage_tokens - n_tokens
+            n_tokens = usage_tokens
+        res = LLMResult("".join(parts), n_tokens, elapsed, truncated=finish == "length", gen_seconds=(end - first_tok) if first_tok else 0.0)
         self.last_tps = res.tps
         self.calls += 1
         await self.bus.publish(
