@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import time
 
 import psutil
@@ -103,14 +104,40 @@ class Brain:
             "tools": list(self.tools.custom()), "goals": len(self.goals.all()),
         }
 
+    def _agents_snapshot(self) -> list[dict]:
+        """Rebuild each agent's current state from this run's events so a reloaded dashboard is accurate."""
+        rows = self.db.query(
+            "SELECT type,agent,data,ts FROM events WHERE ts>=? AND type IN "
+            "('agent.spawn','agent.state','agent.thought','agent.end') ORDER BY seq DESC LIMIT 600",
+            (self.started,),
+        )
+        agents: dict[str, dict] = {}
+        for r in reversed(rows):
+            d, a = json.loads(r["data"]), r["agent"]
+            if r["type"] == "agent.spawn":
+                agents[a] = {
+                    "id": a, "role": d.get("role", "executor"), "parent": d.get("parent"), "goal_id": d.get("goal_id"),
+                    "task": d.get("task", ""), "state": "idle", "detail": "", "thought": "", "action": "", "steps": 0,
+                    "born": r["ts"], "ended": None, "success": None, "summary": "",
+                }
+            elif a in agents:
+                x = agents[a]
+                if r["type"] == "agent.state":
+                    x["state"], x["detail"] = d.get("state", x["state"]), d.get("detail", "")
+                elif r["type"] == "agent.thought":
+                    x["thought"], x["action"], x["steps"] = d.get("thought", ""), d.get("action", ""), x["steps"] + 1
+                else:
+                    x.update(ended=r["ts"], success=d.get("success"), summary=d.get("summary", ""),
+                             state="done" if d.get("success") else "failed")
+        cutoff = time.time() - 30
+        return [a for a in agents.values() if a["ended"] is None or a["ended"] > cutoff]
+
     def snapshot(self) -> dict:
         return {
             "control": self.control.snapshot(),
             "goals": self.goals.all(),
-            "agents": [
-                {"id": a.id, "role": a.role, "parent": a.parent.id if a.parent else None, "goal_id": a.goal_id, "steps": a.steps}
-                for a in self.orchestrator.live.values()
-            ],
+            "agents": self._agents_snapshot(),
+            "streams": dict(self.llm.streams),
             "tools": [
                 {"name": t.name, "description": t.description, "custom": t.custom} for t in self.tools.all().values()
             ],
@@ -146,7 +173,7 @@ class Brain:
                 "system.metrics", None,
                 cpu=psutil.cpu_percent(None), mem=psutil.virtual_memory().percent,
                 proc_mb=round(proc.memory_info().rss / 1e6),
-                tps=round(self.llm.last_tps, 1), tokens=self.llm.total_tokens, llm_busy=self.llm.busy,
+                tps=round(self.llm.current_tps, 1), tokens=self.llm.total_tokens, llm_busy=self.llm.busy, llm_queued=self.llm.queued,
                 calls=self.llm.calls, live_agents=len(self.orchestrator.live), uptime=round(time.time() - self.started),
                 health=self._health, control=self.control.snapshot(), metrics=self.selfmodel.metrics(),
             )

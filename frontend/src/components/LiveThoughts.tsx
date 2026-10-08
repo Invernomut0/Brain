@@ -6,7 +6,7 @@ const REASONING_PREFIX = '(ragiona) '
 
 function ThoughtCard({ a }: { a: AgentView }) {
   const raw = useBrain((s) => s.streams[a.id]) ?? ''
-  const tps = useBrain((s) => s.sys.tps)
+  const tps = useBrain((s) => s.streamTps[a.id]) ?? 0
   const reasoning = raw.startsWith(REASONING_PREFIX)
   const text = reasoning ? raw.slice(REASONING_PREFIX.length) : raw
   const body = useRef<HTMLDivElement>(null)
@@ -14,6 +14,7 @@ function ThoughtCard({ a }: { a: AgentView }) {
   useEffect(() => { const el = body.current; if (el) el.scrollTop = el.scrollHeight }, [text])
 
   const thinking = a.state === 'thinking'
+  const queued = a.state === 'queued'
   const shown = thinking ? text : a.thought
   return (
     <div className="live" style={{ ['--c' as string]: color }}>
@@ -21,11 +22,11 @@ function ThoughtCard({ a }: { a: AgentView }) {
         <i className="live-dot" />
         <b>{a.role}</b>
         <span className="live-id">{a.id}</span>
-        <span className="live-mode">{thinking ? (reasoning ? 'ragionamento' : 'risposta') : a.state === 'acting' ? `tool · ${a.detail}` : a.state}</span>
-        {thinking && <span className="live-tps">{tps.toFixed(1)} tok/s</span>}
+        <span className="live-mode">{thinking ? (reasoning ? 'ragionamento' : 'risposta') : queued ? 'in coda su LM Studio' : a.state === 'acting' ? `tool · ${a.detail}` : a.state}</span>
+        {thinking && tps > 0 && <span className="live-tps">{tps.toFixed(1)} tok/s</span>}
       </div>
       <div className="live-body" ref={body}>
-        {shown || <span className="live-wait">in attesa del modello…</span>}
+        {shown || <span className="live-wait">{queued ? 'in attesa che LM Studio liberi uno slot…' : 'in attesa del modello…'}</span>}
         {thinking && <span className="live-caret" />}
       </div>
     </div>
@@ -36,9 +37,9 @@ function ThoughtCard({ a }: { a: AgentView }) {
 export function LiveThoughts() {
   const agents = useBrain((s) => s.agents)
   const active = Object.values(agents)
-    .filter((a) => !a.endedAt && (a.state === 'thinking' || a.state === 'acting'))
+    .filter((a) => !a.endedAt && (a.state === 'thinking' || a.state === 'acting' || a.state === 'queued'))
     .sort((a, b) => b.bornAt - a.bornAt)
-    .slice(0, 2)
+    .slice(0, 3)
   if (!active.length) return null
   return <div className="live-stack">{active.map((a) => <ThoughtCard key={a.id} a={a} />)}</div>
 }

@@ -91,6 +91,7 @@ body::before {
 .badge.done { color: var(--green); border-color: var(--green); }
 .badge.failed { color: var(--red); border-color: var(--red); }
 .badge.idle { color: var(--dim); border-color: var(--dim); }
+.badge.queued { color: var(--amber); border-color: var(--amber); animation: blink 1.6s infinite; }
 .empty { color: var(--dim); font-size: 12px; padding: 14px 0; text-align: center; }
 
 /* metrics */

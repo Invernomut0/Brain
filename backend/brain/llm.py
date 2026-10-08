@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 import time
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 
 import httpx
@@ -42,11 +43,34 @@ class LLMClient:
         self.last_tps = 0.0
         self.calls = 0
         self.busy = 0
+        self.queued = 0
+        self.live_tps: dict[int, float] = {}  # in-flight call id -> tokens/s
+        self.streams: dict[str, dict] = {}  # agent id -> latest streamed text (for dashboard snapshots)
+        self._call_seq = 0
         self._sem = asyncio.Semaphore(settings.llm_concurrency)
         self._http = httpx.AsyncClient(base_url=settings.llm_url, timeout=httpx.Timeout(600, connect=5))
 
     async def close(self) -> None:
         await self._http.aclose()
+
+    @property
+    def current_tps(self) -> float:
+        return sum(self.live_tps.values()) if self.live_tps else self.last_tps
+
+    @asynccontextmanager
+    async def _slot(self, agent: str | None):
+        """Concurrency slot; tells the UI when a request is queued behind others."""
+        self.queued += 1
+        if self._sem.locked():
+            await self.bus.publish("agent.state", agent, state="queued", detail="in coda su LM Studio")
+        try:
+            await self._sem.acquire()
+        finally:
+            self.queued -= 1
+        try:
+            yield
+        finally:
+            self._sem.release()
 
     async def list_models(self) -> list[str]:
         r = await self._http.get("/models", timeout=5)
@@ -94,9 +118,12 @@ class LLMClient:
             "max_tokens": max_tokens + REASONING_HEADROOM,
             "stream": True,
         }
-        async with self._sem:
+        async with self._slot(agent):
             self.busy += 1
+            self._call_seq += 1
+            cid = self._call_seq
             await self.bus.publish("llm.start", agent, purpose=purpose)
+            await self.bus.publish("agent.state", agent, state="thinking", detail="")
             t0 = time.time()
             parts: list[str] = []
             thinking: list[str] = []
@@ -124,6 +151,7 @@ class LLMClient:
                         think = delta.get("reasoning_content") or ""
                         if piece or think:
                             n_tokens += 1
+                            self.total_tokens += 1
                         if piece:
                             parts.append(piece)
                         if think:
@@ -132,17 +160,20 @@ class LLMClient:
                         if now - last_emit > 0.4:
                             last_emit = now
                             live = "".join(parts) or "".join(thinking)
+                            tps = n_tokens / max(now - t0, 1e-3)
+                            self.live_tps[cid] = self.last_tps = tps
+                            self.streams[agent or "?"] = {"text": live[-600:], "reasoning": not parts, "tps": tps, "tokens": n_tokens}
                             await self.bus.publish(
-                                "agent.stream", agent, text=live[-600:], reasoning=not parts,
-                                tokens=n_tokens, tps=n_tokens / max(now - t0, 1e-3),
+                                "agent.stream", agent, text=live[-600:], reasoning=not parts, tokens=n_tokens, tps=tps,
                             )
             except httpx.HTTPError as e:
                 raise LLMError(f"LM Studio unreachable: {e}") from e
             finally:
                 self.busy -= 1
+                self.live_tps.pop(cid, None)
+                self.streams.pop(agent or "?", None)
             elapsed = time.time() - t0
         res = LLMResult("".join(parts), n_tokens, elapsed, truncated=finish == "length")
-        self.total_tokens += n_tokens
         self.last_tps = res.tps
         self.calls += 1
         await self.bus.publish(

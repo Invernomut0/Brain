@@ -48,7 +48,8 @@ interface Store {
   evolutions: Evolution[]
   lessons: Lesson[]
   streams: Record<string, string>
-  sys: { cpu: number; mem: number; tps: number; tokens: number; llm_busy: number; calls: number; uptime: number; live_agents: number }
+  streamTps: Record<string, number>
+  sys: { cpu: number; mem: number; tps: number; tokens: number; llm_busy: number; llm_queued: number; calls: number; uptime: number; live_agents: number }
   setConnected: (c: boolean) => void
   applySnapshot: (s: any) => void
   applyEvent: (e: BrainEvent) => void
@@ -61,8 +62,8 @@ export const useBrain = create<Store>((set, get) => ({
   connected: false,
   control: { state: 'idle', cycle: 0, max_cycles: 0, max_tokens: 0 },
   goals: {}, agents: {}, tools: [], customTools: [], toolCalls: {}, activity: {}, pulses: [], events: [], history: [],
-  metrics: EMPTY_METRICS, health: {}, selfmodel: null, journal: [], chat: [], evolutions: [], lessons: [], streams: {},
-  sys: { cpu: 0, mem: 0, tps: 0, tokens: 0, llm_busy: 0, calls: 0, uptime: 0, live_agents: 0 },
+  metrics: EMPTY_METRICS, health: {}, selfmodel: null, journal: [], chat: [], evolutions: [], lessons: [], streams: {}, streamTps: {},
+  sys: { cpu: 0, mem: 0, tps: 0, tokens: 0, llm_busy: 0, llm_queued: 0, calls: 0, uptime: 0, live_agents: 0 },
 
   setConnected: (connected) => set({ connected }),
 
@@ -71,12 +72,22 @@ export const useBrain = create<Store>((set, get) => ({
     for (const g of s.goals) goals[g.id] = g
     const agents: Record<string, AgentView> = {}
     for (const a of s.agents) {
-      agents[a.id] = { ...a, task: '', state: 'idle', detail: '', thought: '', action: '', bornAt: Date.now(), endedAt: null, success: null, summary: '' }
+      agents[a.id] = {
+        id: a.id, role: a.role, parent: a.parent, goal_id: a.goal_id, task: a.task ?? '', state: a.state ?? 'idle', detail: a.detail ?? '',
+        thought: a.thought ?? '', action: a.action ?? '', steps: a.steps ?? 0, bornAt: (a.born ?? Date.now() / 1000) * 1000,
+        endedAt: a.ended ? a.ended * 1000 : null, success: a.success ?? null, summary: a.summary ?? '',
+      }
+    }
+    const streams: Record<string, string> = {}
+    const streamTps: Record<string, number> = {}
+    for (const [id, v] of Object.entries<any>(s.streams ?? {})) {
+      streams[id] = (v.reasoning ? '(ragiona) ' : '') + v.text
+      streamTps[id] = v.tps
     }
     set({
       control: s.control, goals, agents, tools: s.tools, customTools: s.custom_tools, metrics: s.metrics,
       health: s.health ?? {}, selfmodel: s.selfmodel, journal: s.journal, chat: s.chat.map((c: any) => ({ role: c.role, text: c.text, ts: c.ts })),
-      evolutions: s.evolutions, events: s.events, lessons: s.lessons ?? [],
+      evolutions: s.evolutions, events: s.events, lessons: s.lessons ?? [], streams, streamTps,
     })
   },
 
@@ -92,7 +103,7 @@ export const useBrain = create<Store>((set, get) => ({
 
     switch (e.type) {
       case 'system.metrics': {
-        patch.sys = { cpu: d.cpu, mem: d.mem, tps: d.tps, tokens: d.tokens, llm_busy: d.llm_busy, calls: d.calls, uptime: d.uptime, live_agents: d.live_agents }
+        patch.sys = { cpu: d.cpu, mem: d.mem, tps: d.tps, tokens: d.tokens, llm_busy: d.llm_busy, llm_queued: d.llm_queued ?? 0, calls: d.calls, uptime: d.uptime, live_agents: d.live_agents }
         patch.health = d.health
         patch.control = d.control
         patch.metrics = d.metrics
@@ -101,7 +112,7 @@ export const useBrain = create<Store>((set, get) => ({
         return
       }
       case 'agent.stream': {
-        if (e.agent) set({ streams: { ...st.streams, [e.agent]: (d.reasoning ? '(ragiona) ' : '') + d.text } })
+        if (e.agent) set({ streams: { ...st.streams, [e.agent]: (d.reasoning ? '(ragiona) ' : '') + d.text }, streamTps: { ...st.streamTps, [e.agent]: d.tps } })
         return
       }
       case 'control.state': patch.control = d as Control; break

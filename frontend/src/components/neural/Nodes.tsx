@@ -131,7 +131,7 @@ export function AgentNode({ a, now }: { a: AgentView; now: number }) {
   const energy = () => {
     const st = useBrain.getState().agents[a.id]?.state ?? a.state
     const t = Date.now() / 1000
-    const e = st === 'acting' ? 1.6 : st === 'thinking' ? 1.0 + Math.sin(t * 7) * 0.35 : st === 'idle' ? 0.45 : 0.8
+    const e = st === 'acting' ? 1.6 : st === 'thinking' ? 1.0 + Math.sin(t * 7) * 0.35 : st === 'queued' ? 0.55 + Math.sin(t * 3) * 0.15 : st === 'idle' ? 0.45 : 0.8
     return e + flashOf(a.id) * 0.8
   }
 

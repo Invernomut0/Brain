@@ -26,7 +26,7 @@ export function Header() {
       <span className="chip"><i className={`dot ${health.llm?.ok ? 'ok' : 'bad'}`} />LM Studio{health.llm?.model ? ` · ${health.llm.model}` : ''}</span>
       <span className="chip"><i className={`dot ${health.sandbox?.ok ? 'ok' : 'bad'}`} />Podman{health.sandbox?.ok && !health.sandbox.image ? ' (immagine da costruire)' : health.sandbox?.ok ? ` · ${health.sandbox.running ? health.sandbox.container : 'container in avvio al primo uso'}` : ''}</span>
       <span className="chip"><i className={`dot ${connected ? 'ok' : 'bad'}`} />{connected ? 'live' : 'offline'}</span>
-      <span className="chip">{sys.tps.toFixed(1)} tok/s · {fmt(sys.tokens)} tok</span>
+      <span className="chip"><i className={`dot ${sys.llm_busy ? 'run' : 'ok'}`} />{sys.tps.toFixed(1)} tok/s · {sys.llm_busy} attivi{sys.llm_queued ? ` · ${sys.llm_queued} in coda` : ''} · {fmt(sys.tokens)} tok</span>
       <span className="spacer" />
       <label className="budget">cicli max <input defaultValue={control.max_cycles} key={'c' + control.max_cycles} onBlur={(e) => budget('max_cycles', e.target.value)} /></label>
       <label className="budget">token max <input defaultValue={control.max_tokens} key={'t' + control.max_tokens} onBlur={(e) => budget('max_tokens', e.target.value)} /></label>
