@@ -43,7 +43,7 @@ def create_app(brain: Brain | None = None) -> FastAPI:
         yield
         await brain.shutdown()
 
-    app = FastAPI(title="Brain", version="0.1.17", lifespan=lifespan)
+    app = FastAPI(title="Brain", version="0.1.18", lifespan=lifespan)
     app.state.brain = brain
     app.add_middleware(
         CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -139,6 +139,8 @@ def create_app(brain: Brain | None = None) -> FastAPI:
 
         @app.get("/{path:path}")
         async def spa(path: str):
+            if path.startswith("api/"):
+                raise HTTPException(404, "unknown API endpoint (is the server running an older version? restart it)")
             f = DIST / path
             return FileResponse(f if f.is_file() else DIST / "index.html")
 

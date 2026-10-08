@@ -28,6 +28,10 @@ def test_control_lifecycle_and_kill(client):
     assert client.post("/api/v1/control/bogus").status_code == 404
 
 
+def test_unknown_api_path_is_404_not_the_spa_page(client):
+    assert client.get("/api/v1/nonexistent").status_code == 404
+
+
 def test_budget_and_chat_validation(client):
     assert client.post("/api/v1/budget", json={"max_cycles": 3}).json()["max_cycles"] == 3
     assert client.post("/api/v1/chat", json={"text": "  "}).status_code == 422
