@@ -82,6 +82,17 @@ export function LiveThoughts() {
   const active = Object.values(agents)
     .filter((a) => !a.endedAt && (a.state === 'thinking' || a.state === 'acting' || a.state === 'queued'))
     .sort((a, b) => b.bornAt - a.bornAt)
+
+  // Tell 2D views how much of the left edge this panel covers, so they can shift right and stay fully visible.
+  const showing = active.length > 0 && !hidden
+  useEffect(() => {
+    const el = stack.current
+    if (!showing || !el) { useBrain.setState({ thoughtsInset: 0 }); return }
+    const ro = new ResizeObserver(() => useBrain.setState({ thoughtsInset: Math.round(el.getBoundingClientRect().width + 24) }))
+    ro.observe(el)
+    return () => { ro.disconnect(); useBrain.setState({ thoughtsInset: 0 }) }
+  }, [showing])
+
   if (!active.length) return null
   const sized = size && !hidden
   return (

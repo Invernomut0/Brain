@@ -51,6 +51,7 @@ export function Neural2D() {
   const cycle = useBrain((s) => s.control.cycle)
   const aw = useBrain((s) => s.metrics.awareness_index)
   const busy = useBrain((s) => s.sys.llm_busy)
+  const inset = useBrain((s) => s.thoughtsInset)
   const now = useNow(500)
 
   const agents = useMemo(() => Object.values(agentsMap).filter((a) => !a.endedAt || now - a.endedAt < 12000), [agentsMap, now])
@@ -86,6 +87,7 @@ export function Neural2D() {
   }
 
   return (
+    <div style={{ height: '100%', boxSizing: 'border-box', paddingLeft: inset, transition: 'padding-left 0.25s ease' }}>
     <svg viewBox="-500 -320 1000 640" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" className="n2d">
       <defs>
         <radialGradient id="n2core"><stop offset="0" stopColor="#fff" stopOpacity="0.95" /><stop offset="0.35" stopColor="#8b7bff" stopOpacity="0.9" /><stop offset="1" stopColor="#8b7bff" stopOpacity="0" /></radialGradient>
@@ -134,6 +136,7 @@ export function Neural2D() {
         </circle>
       ))}
     </svg>
+    </div>
   )
 }
 

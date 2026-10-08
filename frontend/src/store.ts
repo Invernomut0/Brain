@@ -49,6 +49,7 @@ interface Store {
   lessons: Lesson[]
   streams: Record<string, string>
   streamTps: Record<string, number>
+  thoughtsInset: number  // left px covered by the live-thoughts panel (lets 2D views avoid it)
   sys: { cpu: number; mem: number; tps: number; tokens: number; llm_busy: number; llm_queued: number; calls: number; uptime: number; live_agents: number }
   setConnected: (c: boolean) => void
   applySnapshot: (s: any) => void
@@ -63,7 +64,7 @@ export const useBrain = create<Store>((set, get) => ({
   connected: false,
   control: { state: 'idle', cycle: 0, max_cycles: 0, max_tokens: 0 },
   goals: {}, agents: {}, tools: [], customTools: [], toolCalls: {}, activity: {}, pulses: [], events: [], history: [],
-  metrics: EMPTY_METRICS, health: {}, selfmodel: null, journal: [], chat: [], evolutions: [], lessons: [], streams: {}, streamTps: {},
+  metrics: EMPTY_METRICS, health: {}, selfmodel: null, journal: [], chat: [], evolutions: [], lessons: [], streams: {}, streamTps: {}, thoughtsInset: 0,
   sys: { cpu: 0, mem: 0, tps: 0, tokens: 0, llm_busy: 0, llm_queued: 0, calls: 0, uptime: 0, live_agents: 0 },
 
   setConnected: (connected) => set({ connected }),
