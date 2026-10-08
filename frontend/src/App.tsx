@@ -3,30 +3,16 @@ import { AgentList } from './components/AgentList'
 import { Chat, EventFeed, EvolutionView, Journal, ToolsView } from './components/Dock'
 import { GoalTree } from './components/GoalTree'
 import { Header } from './components/Header'
+import { LiveThoughts } from './components/LiveThoughts'
 import { MetricsPanel } from './components/MetricsPanel'
 import { Neural3D } from './components/Neural3D'
 import { SelfModelPanel } from './components/SelfModelPanel'
 import { ToolGalaxy } from './components/ToolGalaxy'
 import { useBrainSocket } from './hooks/useBrainSocket'
-import { ROLE_COLOR, useBrain } from './store'
+import { ROLE_COLOR } from './store'
 
 const STAGE = { neural: 'Rete neurale 3D', goals: 'Albero obiettivi', tools: 'Agenti ↔ Tool' } as const
 const DOCK = { feed: 'Eventi live', chat: 'Chat', journal: 'Giornale', tools: 'Tool', evo: 'Evoluzione' } as const
-
-function Thoughts() {
-  const agents = useBrain((s) => s.agents)
-  const streams = useBrain((s) => s.streams)
-  const live = Object.values(agents).filter((a) => !a.endedAt && a.state === 'thinking').slice(0, 2)
-  return (
-    <div className="hud">
-      {live.map((a) => (
-        <div className="thought" key={a.id} style={{ borderLeftColor: ROLE_COLOR[a.role] ?? '#22d3ee' }}>
-          <b>{a.role}</b> {(streams[a.id] ?? '').slice(-220) || '…'}
-        </div>
-      ))}
-    </div>
-  )
-}
 
 export default function App() {
   useBrainSocket()
@@ -52,7 +38,7 @@ export default function App() {
           {stage === 'goals' && <GoalTree />}
           {stage === 'tools' && <ToolGalaxy />}
         </div>
-        {stage === 'neural' && <Thoughts />}
+        {stage === 'neural' && <LiveThoughts />}
       </main>
       <aside style={{ gridColumn: 3, gridRow: 2, display: 'flex', minHeight: 0 }}>
         <MetricsPanel />
