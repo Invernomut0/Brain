@@ -405,8 +405,8 @@ class Orchestrator:
     async def handle_user_message(self, text: str) -> None:
         """Route Lorenzo's message to whoever needs it, then answer honestly about what actually happened."""
         b = self.b
-        await b.memory.add("user", f"Lorenzo ha detto: {text}", ["user"], 0.9)
         facts, reopened = await self.route_user_message(text)
+        asyncio.create_task(b.memory.add("user", f"Lorenzo ha detto: {text}", ["user"], 0.9))  # off the reply's critical path
 
         prompt = (
             "Sei Brain e stai parlando con Lorenzo, il tuo creatore. Rispondi in modo breve, diretto e ONESTO, nella sua lingua.\n"
@@ -418,7 +418,7 @@ class Orchestrator:
             "Crea new_goal solo se Lorenzo chiede qualcosa di nuovo e nessun obiettivo esistente lo copre."
         )
         try:
-            out = await b.llm.chat_json([{"role": "user", "content": prompt}], agent="voice", purpose="chat", temperature=0.5, max_tokens=900)
+            out = await b.llm.chat_json([{"role": "user", "content": prompt}], agent="voice", purpose="chat", temperature=0.5, max_tokens=900, priority=0)
         except LLMError as e:
             await b.bus.publish("chat.message", None, role="brain", text=f"(non riesco a rispondere: {e})")
             return

@@ -35,6 +35,7 @@ class Settings:
     llm_model: str = field(default_factory=lambda: _env("BRAIN_LLM_MODEL", "ternary-bonsai-2-27b-mlx"))
     embed_model: str = field(default_factory=lambda: _env("BRAIN_EMBED_MODEL", "text-embedding-nomic-embed-text-v1.5"))
     llm_concurrency: int = field(default_factory=lambda: _int("BRAIN_LLM_CONCURRENCY", 2))
+    embeddings: str = field(default_factory=lambda: _env("BRAIN_EMBEDDINGS", "auto").lower())  # auto | on | off
 
     host: str = field(default_factory=lambda: _env("BRAIN_HOST", "127.0.0.1"))
     port: int = field(default_factory=lambda: _int("BRAIN_PORT", 8000))

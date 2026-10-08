@@ -1,5 +1,7 @@
 import asyncio
 
+from brain.llm import _Gate
+
 
 async def test_snapshot_reports_real_agent_states_after_a_reload(brain):
     bus = brain.bus
@@ -17,7 +19,7 @@ async def test_snapshot_reports_real_agent_states_after_a_reload(brain):
 
 async def test_requests_waiting_for_lm_studio_are_reported_as_queued(brain):
     llm = brain.llm
-    llm._sem = asyncio.Semaphore(1)
+    llm._gate = _Gate(1)
     sub = brain.bus.subscribe()
     async with llm._slot("a1"):
         waiter = asyncio.create_task(_enter(llm, "a2"))

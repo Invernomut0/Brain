@@ -61,7 +61,9 @@ Brain waits for you to press **▶ Avvia** (set `BRAIN_AUTOSTART=true` to start 
 
 **Parallelism**: up to `BRAIN_MAX_PARALLEL_AGENTS` goals (default 3) run concurrently while the planner keeps the backlog full in the background; agents can also fan out with `spawn_parallel` (up to 4 sub-agents at once). `BRAIN_LLM_CONCURRENCY` (default 2) is how many requests are sent to LM Studio at the same time: enable concurrent predictions in LM Studio's server settings to get real speed-ups, otherwise requests simply queue.
 
-**Talking to Brain**: `ask_user` blocks the asking agent until Lorenzo answers (bounded wait). Replies reach waiting/live agents, reopen a failed goal that depended on the answer, and the chat reply always lists the real actions taken.
+**Talking to Brain**: chat has priority over agents: a chat request aborts in-flight agent generations (they restart automatically afterwards) and holds new agent requests until the reply is out. `ask_user` blocks the asking agent until Lorenzo answers (bounded wait). Replies reach waiting/live agents, reopen a failed goal that depended on the answer, and the chat reply always lists the real actions taken.
+
+**LM Studio robustness**: if the model gets unloaded mid-request Brain waits for it to reload (a 1-token request triggers LM Studio's JIT loader) and retries. Embeddings are only used when their model is already loaded (`BRAIN_EMBEDDINGS=auto`): requesting an unloaded embedding model makes LM Studio swap models and evict the chat model.
 
 ## Dashboard
 | View | What it shows |
