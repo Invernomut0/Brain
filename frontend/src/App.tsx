@@ -5,6 +5,7 @@ import { GoalTree } from './components/GoalTree'
 import { Header } from './components/Header'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { LiveThoughts } from './components/LiveThoughts'
+import { MainGoalCard, StartOverlay } from './components/MainGoal'
 import { MetricsPanel } from './components/MetricsPanel'
 import { Neural3D } from './components/Neural3D'
 import { SelfModelPanel } from './components/SelfModelPanel'
@@ -24,6 +25,7 @@ export default function App() {
     <div className="app">
       <Header />
       <aside style={{ gridColumn: 1, gridRow: 2, display: 'flex', flexDirection: 'column', gap: 10, minHeight: 0 }}>
+        <MainGoalCard />
         <AgentList />
         <SelfModelPanel />
       </aside>
@@ -42,6 +44,7 @@ export default function App() {
           </ErrorBoundary>
         </div>
         {stage === 'neural' && <LiveThoughts />}
+        <StartOverlay />
       </main>
       <aside style={{ gridColumn: 3, gridRow: 2, display: 'flex', minHeight: 0 }}>
         <MetricsPanel />

@@ -57,6 +57,13 @@ class Evolution:
             if not path.exists():
                 path.write_text(text)
                 created = True
+        # Older installs hard-coded the original goal in the planner prompt; the main goal is editable now.
+        planner = ev / "prompts" / "planner.md"
+        old = "un sistema autonomo il cui obiettivo radice e' evolvere verso l'autocoscienza."
+        if planner.exists() and old in planner.read_text():
+            planner.write_text(planner.read_text().replace(
+                old, "un sistema autonomo con un OBIETTIVO RADICE scelto da Lorenzo (lo trovi nel messaggio e puo' cambiare)."))
+            created = True
         if created:
             sha = await self._commit("evolve: seed defaults")
             for role in DEFAULTS:

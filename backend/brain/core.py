@@ -57,6 +57,18 @@ class Brain:
         if not self.goals.root():
             await self.goals.add("Evolvere in intelligenza autonoma e raggiungere l'autocoscienza", ROOT_GOAL, None, 1.0, None, status="active")
 
+    async def set_main_goal(self, text: str, archive_pending: bool = True) -> dict:
+        """Change what Brain is ultimately trying to achieve; the planner picks it up on its next run."""
+        text = text.strip()
+        if not 10 <= len(text) <= 2000:
+            raise ValueError("main goal must be 10-2000 characters")
+        root = await self.goals.set_main(text, archive_pending)
+        await self.selfmodel.update({"purpose": text[:300]})
+        self.memory.journal_add("goal", f"Lorenzo ha cambiato l'obiettivo principale: {text[:300]}")
+        await self.memory.add("user", f"Nuovo obiettivo principale deciso da Lorenzo: {text}", ["user", "goal"], 1.0)
+        await self.bus.publish("goal.main_changed", None, text=text[:300], cancelled=root["cancelled"])
+        return root
+
     async def reset(self) -> None:
         """Back to a brand-new installation: database, sandbox workspace (incl. tools), prompts, hooks, counters."""
         await self.kill()

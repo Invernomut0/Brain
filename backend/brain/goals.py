@@ -1,6 +1,7 @@
 """Goal tree persistence."""
 from __future__ import annotations
 
+import re
 import time
 
 from .bus import EventBus
@@ -52,6 +53,21 @@ class GoalStore:
             ((g["description"] + f"\n[Tentativo precedente fallito: {feedback}]")[:2000], time.time(), gid),
         )
         await self.bus.publish("goal.update", None, **self.get(gid))
+
+    async def set_main(self, text: str, archive_pending: bool) -> dict:
+        """Replace the main goal's text; optionally cancel the queue that was planned for the old goal."""
+        root = self.root()
+        title = re.split(r"(?<=[.!?])\s", text.strip(), maxsplit=1)[0][:120]
+        now = time.time()
+        self.db.execute("UPDATE goals SET title=?, description=?, updated=? WHERE id=?", (title, text.strip(), now, root["id"]))
+        cancelled: list[int] = []
+        if archive_pending:
+            cancelled = [g["id"] for g in self.pending()]
+            for gid in cancelled:
+                self.db.execute("UPDATE goals SET status='cancelled', updated=? WHERE id=?", (now, gid))
+        for gid in [root["id"], *cancelled]:
+            await self.bus.publish("goal.update", None, **self.get(gid))
+        return {**self.get(root["id"]), "cancelled": len(cancelled)}
 
     def all(self) -> list[dict]:
         return self.db.query("SELECT * FROM goals ORDER BY id")

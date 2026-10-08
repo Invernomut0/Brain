@@ -32,6 +32,9 @@ class Orchestrator:
         self._maint: dict[str, asyncio.Task] = {}
 
     # ------------------------------------------------------------- agents
+    def main_goal(self) -> str:
+        """The current main goal text (editable by Lorenzo), falling back to the factory default."""
+        return (self.b.goals.root() or {}).get("description") or ROOT_GOAL
     def deliver(self, frm: str, to: str, text: str) -> bool:
         target = self.live.get(to)
         if not target:
@@ -178,11 +181,11 @@ class Orchestrator:
         await b.bus.publish("agent.spawn", "planner", role="planner", parent=None, goal_id=None, task="pianificazione")
         await b.bus.publish("agent.state", "planner", state="thinking", detail="pianifica")
         root = b.goals.root()
-        memories = await b.memory.search(root["description"] if root else ROOT_GOAL, 3)
+        memories = await b.memory.search(self.main_goal(), 3)
         hook_ctx = await b.evolution.call_hook("context", "build_context", b.state_brief()) or ""
         chat = self._recent_chat(6)
         prompt = (
-            f"OBIETTIVO RADICE: {ROOT_GOAL}\n\nSELF-MODEL:\n{b.selfmodel.render()}\n\n"
+            f"OBIETTIVO RADICE (scelto da Lorenzo, puo' cambiare; prevale su ogni altra indicazione): {self.main_goal()}\n\nSELF-MODEL:\n{b.selfmodel.render()}\n\n"
             f"METRICHE: {json.dumps(b.selfmodel.metrics())}\n\nOBIETTIVI (recenti):\n{b.goals.summary()}\n\n"
             f"GIORNALE:\n" + "\n".join(j["text"][:200] for j in b.memory.journal_recent(3)) +
             f"\n\nMEMORIA RILEVANTE:\n" + "\n".join(m["text"][:200] for m in memories) +
@@ -223,7 +226,7 @@ class Orchestrator:
         started = time.time()
         await b.goals.set_status(goal["id"], "active")
         role = goal.get("role") or "executor"
-        task = f"OBIETTIVO #{goal['id']}: {goal['title']}\n{goal['description']}\n\nObiettivo radice di Brain: {ROOT_GOAL[:200]}"
+        task = f"OBIETTIVO #{goal['id']}: {goal['title']}\n{goal['description']}\n\nObiettivo radice di Brain: {self.main_goal()[:200]}"
         agent = Agent(b, role, task, goal["id"])
         res = await self.run_agent(agent)
         verdict = await self.critique(goal, res, started)

@@ -24,6 +24,11 @@ class ResetIn(BaseModel):
     confirm: str
 
 
+class MainGoalIn(BaseModel):
+    text: str
+    archive_pending: bool = True
+
+
 class BudgetIn(BaseModel):
     max_cycles: int | None = None
     max_tokens: int | None = None
@@ -38,7 +43,7 @@ def create_app(brain: Brain | None = None) -> FastAPI:
         yield
         await brain.shutdown()
 
-    app = FastAPI(title="Brain", version="0.1.12", lifespan=lifespan)
+    app = FastAPI(title="Brain", version="0.1.13", lifespan=lifespan)
     app.state.brain = brain
     app.add_middleware(
         CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -56,6 +61,19 @@ def create_app(brain: Brain | None = None) -> FastAPI:
             raise HTTPException(404, "unknown action")
         await fn()
         return brain.control.snapshot()
+
+    @app.get("/api/v1/main-goal")
+    async def get_main_goal():
+        root = brain.goals.root() or {}
+        return {"title": root.get("title"), "text": root.get("description")}
+
+    @app.put("/api/v1/main-goal")
+    async def put_main_goal(body: MainGoalIn):
+        try:
+            root = await brain.set_main_goal(body.text, body.archive_pending)
+        except ValueError as e:
+            raise HTTPException(422, str(e)) from e
+        return {"title": root["title"], "text": root["description"], "cancelled": root["cancelled"]}
 
     @app.post("/api/v1/reset")
     async def reset(body: ResetIn):

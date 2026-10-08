@@ -57,7 +57,7 @@ cd frontend && npm install && npm run build && cd ..
 ./stop.sh                       # kill switch + stop the server + remove sandbox containers
 # development: backend `cd backend && ../.venv/bin/python -m brain.main`, frontend `cd frontend && npm run dev` (http://localhost:5173)
 ```
-Brain starts its autonomous loop by itself when the server boots (set `BRAIN_AUTOSTART=false` to start manually with **▶ Avvia**).
+Brain waits for you to press **▶ Avvia** (set `BRAIN_AUTOSTART=true` to start the autonomous loop when the server boots). The **main goal** can be edited from the dashboard (or `PUT /api/v1/main-goal`) at any time; the planner follows the new goal from its next run.
 
 **Parallelism**: up to `BRAIN_MAX_PARALLEL_AGENTS` goals (default 3) run concurrently while the planner keeps the backlog full in the background; agents can also fan out with `spawn_parallel` (up to 4 sub-agents at once). `BRAIN_LLM_CONCURRENCY` (default 2) is how many requests are sent to LM Studio at the same time: enable concurrent predictions in LM Studio's server settings to get real speed-ups, otherwise requests simply queue.
 

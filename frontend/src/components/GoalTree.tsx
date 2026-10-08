@@ -4,7 +4,7 @@ import { useBrain } from '../store'
 import type { Goal } from '../types'
 
 const STATUS_COLOR: Record<string, string> = {
-  pending: '#7f89b8', active: '#22d3ee', done: '#34f5a0', failed: '#ff4d6d',
+  pending: '#7f89b8', active: '#22d3ee', done: '#34f5a0', failed: '#ff4d6d', cancelled: '#4b5578',
 }
 
 interface TNode { goal: Goal; children: TNode[] }

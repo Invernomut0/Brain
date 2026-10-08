@@ -23,7 +23,7 @@ export function ResetDialog({ onClose }: { onClose: () => void }) {
           <li>tool creati e tutti i file del workspace della sandbox (il container viene ricreato)</li>
           <li>prompt e hook evoluti: tornano ai valori di fabbrica (la cronologia git resta)</li>
         </ul>
-        <p>Gli agenti in corso vengono interrotti. Il sistema riparte da solo se l'avvio automatico è attivo.</p>
+        <p>Gli agenti in corso vengono interrotti. Dopo il reset Brain resta fermo: premi ▶ Avvia per ripartire. L'obiettivo principale torna a quello di fabbrica.</p>
         <label>Scrivi <b>RESET</b> per confermare
           <input autoFocus value={text} disabled={busy} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && text === 'RESET' && run()} />
         </label>
