@@ -7,6 +7,7 @@ from brain.core import Brain
 
 @pytest.fixture
 def client(settings):
+    settings.autostart = False  # the idle-state assertions need a stopped system
     app = create_app(Brain(settings))
     with TestClient(app) as c:
         yield c

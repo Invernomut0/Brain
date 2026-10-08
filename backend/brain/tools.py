@@ -181,9 +181,14 @@ async def recall(ctx: ToolContext, query: str, k: int = 5):
     return await ctx.brain.memory.search(query, int(k))
 
 
-async def ask_user(ctx: ToolContext, message: str):
-    await ctx.brain.bus.publish("chat.message", ctx.agent.id, role="brain", text=message, agent_role=ctx.agent.role)
-    return "messaggio inviato a Lorenzo; l'eventuale risposta arrivera' come messaggio utente nei prossimi cicli"
+async def ask_user(ctx: ToolContext, message: str, wait: int = 120):
+    reply = await ctx.brain.orchestrator.ask(ctx.agent, message, min(max(int(wait), 0), 300))
+    if reply is not None:
+        return f"Risposta di Lorenzo: {reply}"
+    return (
+        "Messaggio inviato ma Lorenzo non ha (ancora) risposto: prosegui in autonomia con ipotesi ragionevoli, "
+        "dichiarale nel summary; se risponde dopo, ricevi un messaggio [Lorenzo] o l'obiettivo viene riaperto."
+    )
 
 
 async def send_message(ctx: ToolContext, to: str, text: str):
@@ -193,6 +198,10 @@ async def send_message(ctx: ToolContext, to: str, text: str):
 
 async def spawn_agent(ctx: ToolContext, role: str, task: str, system_prompt: str = ""):
     return await ctx.brain.orchestrator.spawn_and_run(ctx.agent, role, task, system_prompt)
+
+
+async def spawn_parallel(ctx: ToolContext, tasks: list):
+    return await ctx.brain.orchestrator.spawn_many(ctx.agent, tasks)
 
 
 # ---------------------------------------------------------------- evolution
@@ -243,9 +252,10 @@ def _builtin_tools() -> list[Tool]:
         T("list_files", "elenca i file del workspace (path relativo)", {"path": "str='.'"}, list_files),
         T("remember", "salva un fatto nella memoria a lungo termine", {"text": "str", "tags": "list?", "importance": "0-1"}, remember),
         T("recall", "cerca nella memoria a lungo termine (semantica)", {"query": "str", "k": "int=5"}, recall),
-        T("ask_user", "scrive a Lorenzo nella chat (non bloccante)", {"message": "str"}, ask_user),
+        T("ask_user", "scrive a Lorenzo in chat e ATTENDE la sua risposta (wait secondi, default 120, max 300, 0 = non attendere); ritorna la risposta o l'avviso di mancata risposta", {"message": "str", "wait": "int=120"}, ask_user),
         T("send_message", "invia un messaggio a un altro agente vivo", {"to": "agent_id", "text": "str"}, send_message),
         T("spawn_agent", "crea un sotto-agente con un ruolo e attende il risultato", {"role": "str", "task": "str", "system_prompt": "str? (ruolo personalizzato)"}, spawn_agent),
+        T("spawn_parallel", "lancia fino a 4 sotto-agenti IN PARALLELO e attende tutti i risultati", {"tasks": "list di {role, task, system_prompt?}"}, spawn_parallel),
         T("create_tool", "crea un nuovo tool Python permanente: code definisce run(**kwargs); test_code sono test pytest che importano il modulo (sys.path.insert(0,'/workspace/tools'))",
           {"name": "snake_case", "description": "str", "params": "dict nome->descrizione", "code": "str", "test_code": "str"}, create_tool),
         T("propose_prompt", f"modifica il prompt di un ruolo (planner/executor/researcher/engineer/critic/reflector); versionato con rollback automatico", {"role": "str", "new_prompt": "str", "reason": "str"}, propose_prompt),

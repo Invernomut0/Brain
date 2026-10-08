@@ -43,6 +43,8 @@ class Brain:
 
     async def startup(self) -> None:
         await self.evolution.seed()
+        # Goals left 'active' by a crash/kill would never be picked up again.
+        self.db.execute("UPDATE goals SET status='pending' WHERE status='active' AND parent_id IS NOT NULL")
         if not self.goals.root():
             await self.goals.add("Evolvere in intelligenza autonoma e raggiungere l'autocoscienza", ROOT_GOAL, None, 1.0, None, status="active")
         self._metrics_task = asyncio.create_task(self._metrics_loop())

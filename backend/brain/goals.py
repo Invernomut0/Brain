@@ -36,6 +36,15 @@ class GoalStore:
         )
         await self.bus.publish("goal.update", None, **self.get(gid))
 
+    async def reopen(self, gid: int, note: str) -> None:
+        """Put a goal back in the queue with new information attached (e.g. Lorenzo's answer)."""
+        g = self.get(gid)
+        self.db.execute(
+            "UPDATE goals SET status='pending', description=?, attempts=0, updated=? WHERE id=?",
+            ((g["description"] + f"\n[{note}]")[:2000], time.time(), gid),
+        )
+        await self.bus.publish("goal.update", None, **self.get(gid))
+
     async def requeue(self, gid: int, feedback: str) -> None:
         g = self.get(gid)
         self.db.execute(

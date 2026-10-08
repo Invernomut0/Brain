@@ -59,6 +59,10 @@ cd frontend && npm install && npm run build && cd ..
 ```
 Brain starts its autonomous loop by itself when the server boots (set `BRAIN_AUTOSTART=false` to start manually with **▶ Avvia**).
 
+**Parallelism**: up to `BRAIN_MAX_PARALLEL_AGENTS` goals (default 3) run concurrently while the planner keeps the backlog full in the background; agents can also fan out with `spawn_parallel` (up to 4 sub-agents at once). `BRAIN_LLM_CONCURRENCY` (default 2) is how many requests are sent to LM Studio at the same time: enable concurrent predictions in LM Studio's server settings to get real speed-ups, otherwise requests simply queue.
+
+**Talking to Brain**: `ask_user` blocks the asking agent until Lorenzo answers (bounded wait). Replies reach waiting/live agents, reopen a failed goal that depended on the answer, and the chat reply always lists the real actions taken.
+
 ## Dashboard
 | View | What it shows |
 |---|---|

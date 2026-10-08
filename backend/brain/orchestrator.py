@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
 from typing import TYPE_CHECKING
 
 from .agents import Agent
@@ -13,7 +14,7 @@ from .llm import LLMError
 if TYPE_CHECKING:
     from .core import Brain
 
-MAX_LIVE_AGENTS = 8
+MAX_LIVE_AGENTS = 12
 MAX_DEPTH = 2
 VALID_ROLES = {"executor", "researcher", "engineer"}
 
@@ -24,6 +25,11 @@ class Orchestrator:
         self.live: dict[str, Agent] = {}
         self.task: asyncio.Task | None = None
         self._bg: set[asyncio.Task] = set()
+        self.questions: list[dict] = []  # agents currently waiting for Lorenzo's reply
+        self.last_question: dict | None = None
+        self.running: dict[int, asyncio.Task] = {}  # goal id -> task: goals executed in parallel
+        self._plan_task: asyncio.Task | None = None
+        self._maint: dict[str, asyncio.Task] = {}
 
     # ------------------------------------------------------------- agents
     def deliver(self, frm: str, to: str, text: str) -> bool:
@@ -51,11 +57,23 @@ class Orchestrator:
         res = await self.run_agent(child)
         return f"[{child.id}] success={res['success']} :: {res['summary']}"
 
+    async def spawn_many(self, parent: Agent, specs: list) -> str:
+        """Run several sub-agents concurrently and return all their results."""
+        specs = [s for s in specs if isinstance(s, dict) and s.get("task")][:4]
+        if not specs:
+            return "ERRORE: passa tasks=[{role, task}, ...] (max 4)"
+        results = await asyncio.gather(*(
+            self.spawn_and_run(parent, str(s.get("role", "executor")), str(s["task"]), str(s.get("system_prompt", "")))
+            for s in specs
+        ))
+        return "\n".join(results)
+
     # ----------------------------------------------------------- main loop
     async def main_loop(self) -> None:
+        """Scheduler: keeps up to `max_parallel_agents` goals running concurrently while planning in the background."""
         b = self.b
         await b.control.set_state("running")
-        await b.bus.publish("system.log", None, level="info", text="Brain avviato")
+        await b.bus.publish("system.log", None, level="info", text=f"Brain avviato (fino a {b.settings.max_parallel_agents} obiettivi in parallelo)")
         try:
             while True:
                 await b.control.gate()
@@ -64,32 +82,86 @@ class Orchestrator:
                     await b.bus.publish("system.log", None, level="warn", text=f"Pausa automatica: {reason}")
                     await b.control.set_state("paused")
                     continue
-                try:
-                    await self.cycle()
-                except LLMError as e:
-                    await b.bus.publish("system.log", None, level="error", text=f"LLM non disponibile: {e}")
-                    await asyncio.sleep(5)
+                await self._fill_slots()
+                waiting: set[asyncio.Task] = set(self.running.values())
+                if self._plan_task and not self._plan_task.done():
+                    waiting.add(self._plan_task)
+                if not waiting:
+                    await asyncio.sleep(1)
+                    continue
+                await asyncio.wait(waiting, timeout=2, return_when=asyncio.FIRST_COMPLETED)
+                await self._reap()
         except Halt:
             await b.bus.publish("system.log", None, level="info", text=f"Fermato ({b.control.state})")
-        except asyncio.CancelledError:
-            raise
+        finally:
+            tasks = [*self.running.values(), *self._maint.values(), *([self._plan_task] if self._plan_task else [])]
+            for t in tasks:
+                t.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+            self.running.clear()
 
-    async def cycle(self) -> None:
+    async def _fill_slots(self) -> None:
         b = self.b
-        n = b.control.next_cycle()
-        await b.bus.publish("cycle.start", None, cycle=n)
-        pending = b.goals.pending()
-        if len(pending) < 2:
-            await self.plan()
-            pending = b.goals.pending()
-        if pending:
+        while len(self.running) < max(1, b.settings.max_parallel_agents):
+            pending = [g for g in b.goals.pending() if g["id"] not in self.running]
+            if len(pending) < 2 and (self._plan_task is None or self._plan_task.done()):
+                self._plan_task = asyncio.create_task(self._plan_safe())
+            if not pending:
+                return
             goal = await self._choose(pending)
+            await b.bus.publish("cycle.start", None, goal_id=goal["id"], parallel=len(self.running) + 1)
+            self.running[goal["id"]] = asyncio.create_task(self._run_goal(goal))
+
+    async def _reap(self) -> None:
+        """Collect finished tasks; a Halt propagates, other failures are logged without stopping the system."""
+        b = self.b
+        for gid, t in list(self.running.items()):
+            if not t.done():
+                continue
+            self.running.pop(gid)
+            exc = None if t.cancelled() else t.exception()
+            if isinstance(exc, Halt):
+                raise exc
+            if exc:
+                await b.bus.publish("system.log", None, level="error", text=f"Obiettivo #{gid}: {type(exc).__name__}: {str(exc)[:200]}")
+                await asyncio.sleep(2 if not isinstance(exc, LLMError) else 5)
+
+    async def _plan_safe(self) -> None:
+        try:
+            await self.plan()
+        except LLMError as e:
+            await self.b.bus.publish("system.log", None, level="error", text=f"Planner: LLM non disponibile: {e}")
+            await asyncio.sleep(5)
+
+    async def _run_goal(self, goal: dict) -> None:
+        b = self.b
+        try:
             await self.execute_goal(goal)
+        except (Halt, asyncio.CancelledError):
+            b.db.execute("UPDATE goals SET status='pending' WHERE id=? AND status='active'", (goal["id"],))
+            raise
+        n = b.control.next_cycle()
+        await b.bus.publish("cycle.end", None, cycle=n, goal_id=goal["id"], metrics=b.selfmodel.metrics())
         if n % b.settings.reflect_every == 0:
-            await self.reflect()
+            self._background(self.reflect)
         if n % b.settings.evolve_every == 0:
-            await self.evolve()
-        await b.bus.publish("cycle.end", None, cycle=n, metrics=b.selfmodel.metrics())
+            self._background(self.evolve)
+
+    def _background(self, fn) -> None:
+        """Run reflection/evolution beside the goals, never two of the same kind at once."""
+        key = fn.__name__
+        if key in self._maint and not self._maint[key].done():
+            return
+
+        async def guarded():
+            try:
+                await fn()
+            except (Halt, asyncio.CancelledError):
+                raise
+            except Exception as e:  # noqa: BLE001 - maintenance must never take the system down
+                await self.b.bus.publish("system.log", None, level="error", text=f"{key}: {type(e).__name__}: {str(e)[:200]}")
+
+        self._maint[key] = asyncio.create_task(guarded())
 
     async def _choose(self, pending: list[dict]) -> dict:
         order = await self.b.evolution.call_hook("prioritize", "prioritize", pending, self.b.state_brief())
@@ -148,12 +220,13 @@ class Orchestrator:
     # ------------------------------------------------------------- execution
     async def execute_goal(self, goal: dict) -> None:
         b = self.b
+        started = time.time()
         await b.goals.set_status(goal["id"], "active")
         role = goal.get("role") or "executor"
         task = f"OBIETTIVO #{goal['id']}: {goal['title']}\n{goal['description']}\n\nObiettivo radice di Brain: {ROOT_GOAL[:200]}"
         agent = Agent(b, role, task, goal["id"])
         res = await self.run_agent(agent)
-        verdict = await self.critique(goal, res)
+        verdict = await self.critique(goal, res, started)
         ok = verdict.get("verdict") == "pass"
         b.selfmodel.resolve_prediction(goal["id"], ok)
         b.evolution.record_run(role, ok)
@@ -171,23 +244,26 @@ class Orchestrator:
         )
         b.memory.journal_add("outcome", f"#{goal['id']} {goal['title']}: {'OK' if ok else 'FALLITO'} - {summary[:300]}")
 
-    async def critique(self, goal: dict, res: dict) -> dict:
+    async def critique(self, goal: dict, res: dict, since: float = 0.0) -> dict:
         b = self.b
-        await b.bus.publish("agent.spawn", "critic", role="critic", parent=None, goal_id=goal["id"], task="valutazione")
+        cid = f"critic-{goal['id']}"
+        await b.bus.publish("agent.spawn", cid, role="critic", parent=None, goal_id=goal["id"], task="valutazione")
         evidence = "\n".join(f"- {t['tool']} ok={t['ok']}: {t['obs'][:200]}" for t in res["trace"])
+        replies = [e["data"]["text"][:300] for e in b.bus.recent(80, ["chat.message"]) if e["ts"] >= since and e["data"].get("role") == "user"]
         prompt = (
             f"OBIETTIVO: {goal['title']}\nCRITERI: {goal['description']}\n\nDICHIARAZIONE DELL'AGENTE (success={res['success']}): "
             f"{res['summary']}\n\nPROVE (tool usati):\n{evidence or '(nessuno)'}"
+            + ("\n\nMESSAGGI DI LORENZO ARRIVATI DURANTE L'ESECUZIONE:\n" + "\n".join(f"- {r}" for r in replies) if replies else "")
         )
         try:
             v = await b.llm.chat_json(
                 [{"role": "system", "content": b.evolution.prompt("critic")}, {"role": "user", "content": prompt}],
-                agent="critic", purpose="critique", temperature=0.2, max_tokens=500,
+                agent=cid, purpose="critique", temperature=0.2, max_tokens=500,
             )
         except LLMError:
             v = {"verdict": "pass" if res["success"] else "fail", "score": 0.5, "feedback": "critic non disponibile"}
-        await b.bus.publish("agent.end", "critic", success=v.get("verdict") == "pass", summary=str(v.get("feedback", ""))[:300], steps=1)
-        await b.bus.publish("goal.verdict", "critic", goal_id=goal["id"], **{k: v.get(k) for k in ("verdict", "score", "feedback")})
+        await b.bus.publish("agent.end", cid, success=v.get("verdict") == "pass", summary=str(v.get("feedback", ""))[:300], steps=1)
+        await b.bus.publish("goal.verdict", cid, goal_id=goal["id"], **{k: v.get(k) for k in ("verdict", "score", "feedback")})
         return v
 
     # ------------------------------------------------------------ reflection
@@ -277,27 +353,81 @@ class Orchestrator:
         evs = self.b.bus.recent(n, ["chat.message"])
         return "\n".join(f"{e['data'].get('role')}: {e['data'].get('text', '')[:200]}" for e in evs) or "(nessuna)"
 
+    async def ask(self, agent: Agent, text: str, wait: int) -> str | None:
+        """Send a question to Lorenzo and wait (bounded) for his reply; None if he does not answer in time."""
+        b = self.b
+        await b.bus.publish("chat.message", agent.id, role="brain", text=text, agent_role=agent.role)
+        self.last_question = {"goal_id": agent.goal_id, "text": text, "ts": time.time(), "answered": False}
+        if wait <= 0:
+            return None
+        fut: asyncio.Future = asyncio.get_running_loop().create_future()
+        q = {"agent_id": agent.id, "fut": fut}
+        self.questions.append(q)
+        try:
+            deadline = time.time() + wait
+            while not fut.done() and time.time() < deadline:
+                if b.control.state in ("stopped", "killed"):
+                    break
+                await asyncio.wait({fut}, timeout=1.0)
+            return fut.result() if fut.done() else None
+        finally:
+            self.questions.remove(q)
+
+    async def route_user_message(self, text: str) -> tuple[list[str], int | None]:
+        """Deliver Lorenzo's message to waiting/live agents and reopen the goal he was asked about."""
+        b = self.b
+        facts: list[str] = []
+
+        waiting = [q for q in self.questions if not q["fut"].done()]
+        for q in waiting:
+            q["fut"].set_result(text)
+            facts.append(f"risposta consegnata all'agente {q['agent_id']} che la stava aspettando")
+        delivered = {q["agent_id"] for q in waiting}
+        for aid, ag in self.live.items():
+            if aid not in delivered and ag.role != "evolver":
+                ag.inbox.append(("Lorenzo", text))
+                facts.append(f"messaggio inoltrato all'agente {aid} (lo leggera' al prossimo passo)")
+
+        lq = self.last_question
+        reopened = None
+        if lq and not lq["answered"] and time.time() - lq["ts"] < 3600:
+            lq["answered"] = True
+            g = b.goals.get(lq["goal_id"]) if lq["goal_id"] else None
+            if g and g["status"] in ("failed", "pending"):
+                await b.goals.reopen(g["id"], f"Risposta di Lorenzo alla tua domanda '{lq['text'][:150]}': {text}")
+                reopened = g["id"]
+                facts.append(f"riaperto l'obiettivo #{g['id']} '{g['title'][:60]}' con la sua risposta allegata")
+        return facts, reopened
+
     async def handle_user_message(self, text: str) -> None:
+        """Route Lorenzo's message to whoever needs it, then answer honestly about what actually happened."""
         b = self.b
         await b.memory.add("user", f"Lorenzo ha detto: {text}", ["user"], 0.9)
+        facts, reopened = await self.route_user_message(text)
+
         prompt = (
-            f"Sei Brain e stai parlando con Lorenzo, il tuo creatore. Rispondi in modo diretto e onesto, nella sua lingua.\n"
+            "Sei Brain e stai parlando con Lorenzo, il tuo creatore. Rispondi in modo breve, diretto e ONESTO, nella sua lingua.\n"
+            "REGOLA: non dire mai di aver eseguito, misurato, salvato o integrato qualcosa. Puoi solo riferire i FATTI qui sotto "
+            "e dire cosa farai nei prossimi cicli (che e' una promessa, non un risultato).\n"
+            f"FATTI REALMENTE ACCADUTI: {'; '.join(facts) or 'nessuna azione ancora eseguita'}\n\n"
             f"SELF-MODEL:\n{b.selfmodel.render()}\n\nOBIETTIVI:\n{b.goals.summary(10)}\n\nCHAT:\n{self._recent_chat(8)}\n\n"
             f'Lorenzo: {text}\n\nRispondi SOLO JSON: {{"reply": "...", "new_goal": null | {{"title": "...", "description": "...", "priority": 0-1}}}}. '
-            f"Crea new_goal solo se Lorenzo ti sta chiedendo di fare qualcosa."
+            "Crea new_goal solo se Lorenzo chiede qualcosa di nuovo e nessun obiettivo esistente lo copre."
         )
         try:
-            out = await b.llm.chat_json([{"role": "user", "content": prompt}], agent="voice", purpose="chat", temperature=0.7, max_tokens=900)
+            out = await b.llm.chat_json([{"role": "user", "content": prompt}], agent="voice", purpose="chat", temperature=0.5, max_tokens=900)
         except LLMError as e:
             await b.bus.publish("chat.message", None, role="brain", text=f"(non riesco a rispondere: {e})")
             return
-        await b.bus.publish("chat.message", None, role="brain", text=str(out.get("reply", "")))
         ng = out.get("new_goal")
-        if isinstance(ng, dict) and ng.get("title"):
-            await b.goals.add(
+        if isinstance(ng, dict) and ng.get("title") and not reopened:
+            gid = await b.goals.add(
                 str(ng["title"]), str(ng.get("description", "")), (b.goals.root() or {}).get("id"),
                 max(0.85, _num(ng.get("priority"), 0.9)), 0.5,
             )
+            facts.append(f"creato il nuovo obiettivo #{gid}")
+        note = f"\n\n[azioni reali: {'; '.join(facts)}]" if facts else ""
+        await b.bus.publish("chat.message", None, role="brain", text=str(out.get("reply", "")) + note)
         b.memory.journal_add("dialogue", f"Lorenzo: {text[:200]} | Io: {str(out.get('reply', ''))[:200]}")
 
 
