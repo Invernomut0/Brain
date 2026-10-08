@@ -33,7 +33,7 @@ body::before {
 .scroll::-webkit-scrollbar-thumb { background: rgba(139, 123, 255, 0.35); border-radius: 3px; }
 
 /* header */
-.header { display: flex; align-items: center; gap: 14px; padding: 0 16px; }
+.header { display: flex; flex-direction: row; align-items: center; gap: 14px; padding: 0 16px; overflow-x: auto; white-space: nowrap; }
 .logo { font-weight: 800; letter-spacing: 0.3em; font-size: 15px; background: linear-gradient(90deg, var(--cyan), var(--violet), var(--pink)); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 11px; border: 1px solid var(--panel-b); background: rgba(255, 255, 255, 0.03); color: var(--dim); }
 .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--dim); }

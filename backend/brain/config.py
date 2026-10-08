@@ -38,7 +38,7 @@ class Settings:
 
     host: str = field(default_factory=lambda: _env("BRAIN_HOST", "127.0.0.1"))
     port: int = field(default_factory=lambda: _int("BRAIN_PORT", 8000))
-    autostart: bool = field(default_factory=lambda: _env("BRAIN_AUTOSTART", "false").lower() == "true")
+    autostart: bool = field(default_factory=lambda: _env("BRAIN_AUTOSTART", "true").lower() == "true")
     max_cycles: int = field(default_factory=lambda: _int("BRAIN_MAX_CYCLES", 200))
     max_tokens: int = field(default_factory=lambda: _int("BRAIN_MAX_TOKENS", 0))
     max_parallel_agents: int = field(default_factory=lambda: _int("BRAIN_MAX_PARALLEL_AGENTS", 2))
