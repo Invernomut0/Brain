@@ -1,9 +1,9 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import * as d3 from 'd3'
+import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { api } from '../api'
 import { useBrain } from '../store'
+import { GraphCanvas, type GLink, type GNode } from './Graph'
 
-interface WNode { id: string; title: string; type: string; summary: string; updated: number; managed: string; degree: number; embedded: boolean; sx: number | null; sy: number | null }
+interface WNode { id: string; title: string; type: string; summary: string; updated: number; managed: string; degree: number; embedded: boolean; sx: number | null; sy: number | null; sz: number | null }
 interface WEdge { source: string; target: string }
 interface WGraph { nodes: WNode[]; edges: WEdge[] }
 interface WStats {
@@ -17,7 +17,6 @@ interface WPage {
   id: string; title: string; type: string; summary: string; body: string; updated: number; managed: string
   sources: string[]; tags: string[]; links: WLink[]; backlinks: { id: string; title: string }[]
 }
-interface Placed extends WNode { x: number; y: number }
 
 const TYPE_COLOR: Record<string, string> = {
   meta: '#a5b4fc', phase: '#fde047', decision: '#ff9f6b', concept: '#22d3ee', entity: '#34f5a0',
@@ -32,29 +31,6 @@ const radius = (n: WNode) => 4 + Math.min(n.degree, 9) * 1.1
 const when = (ts: number | null) => (ts ? new Date(ts * 1000).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-')
 
 type Mode = 'links' | 'semantic'
-
-/** Positions: force-directed by links, or anchored to the PCA of the page vectors (semantic map). */
-function computeLayout(graph: WGraph, mode: Mode, previous: Map<string, { x: number; y: number }>): Placed[] {
-  const R = 320
-  const nodes: (Placed & d3.SimulationNodeDatum)[] = graph.nodes.map((n, i) => {
-    const prev = previous.get(n.id)
-    const angle = (i / Math.max(graph.nodes.length, 1)) * 2 * Math.PI
-    const anchored = mode === 'semantic' && n.sx != null && n.sy != null
-    return {
-      ...n, x: anchored ? n.sx! * R : prev?.x ?? Math.cos(angle) * 120, y: anchored ? n.sy! * R : prev?.y ?? Math.sin(angle) * 120,
-      ...(anchored ? { fx: n.sx! * R, fy: n.sy! * R } : {}),
-    }
-  })
-  const links = graph.edges.map((e) => ({ source: e.source, target: e.target }))
-  const sim = d3.forceSimulation(nodes)
-    .force('link', d3.forceLink<any, any>(links).id((d: any) => d.id).distance(mode === 'semantic' ? 40 : 70).strength(mode === 'semantic' ? 0.15 : 0.55))
-    .force('charge', d3.forceManyBody().strength(mode === 'semantic' ? -25 : -140))
-    .force('collide', d3.forceCollide<any>().radius((d: any) => radius(d) + 3))
-    .stop()
-  if (mode === 'links') sim.force('center', d3.forceCenter(0, 0)).force('x', d3.forceX(0).strength(0.03)).force('y', d3.forceY(0).strength(0.03))
-  for (let i = 0; i < 320; i++) sim.tick()
-  return nodes.map((n) => ({ ...n, x: n.x ?? 0, y: n.y ?? 0 }))
-}
 
 // ---------------------------------------------------------------- markdown
 const INLINE = /\[\[([^\]|#]+?)(?:#[^\]|]*)?(?:\|([^\]]*))?\]\]|\*\*(.+?)\*\*|`([^`]+)`|\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)|(?<![\w])_([^_\n]+)_(?![\w])/g
@@ -137,18 +113,11 @@ export function WikiView() {
   const [mode, setMode] = useState<Mode>('links')
   const [selected, setSelected] = useState<string | null>(null)
   const [page, setPage] = useState<WPage | null>(null)
-  const [hover, setHover] = useState<string | null>(null)
   const [hidden, setHidden] = useState<Set<string>>(new Set())
   const [q, setQ] = useState('')
   const [hits, setHits] = useState<{ id: string; title: string; summary: string; score: number }[]>([])
   const [busy, setBusy] = useState<'' | 'ingest' | 'embed'>('')
   const [notice, setNotice] = useState('')
-  const [zoomedIn, setZoomedIn] = useState(false)
-  const svgRef = useRef<SVGSVGElement>(null)
-  const gRef = useRef<SVGGElement>(null)
-  const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null)
-  const positions = useRef(new Map<string, { x: number; y: number }>())
-  const fitted = useRef('')
 
   const refresh = useCallback(() => {
     api.get<WGraph>('/wiki/graph').then(setGraph).catch((e) => setNotice(String(e.message ?? e)))
@@ -174,51 +143,22 @@ export function WikiView() {
   const semanticReady = (graph?.nodes.filter((n) => n.sx != null).length ?? 0) >= 3
   const effectiveMode: Mode = mode === 'semantic' && semanticReady ? 'semantic' : 'links'
 
-  const placed = useMemo(() => {
-    if (!graph?.nodes.length) return []
-    const out = computeLayout(graph, effectiveMode, positions.current)
-    positions.current = new Map(out.map((n) => [n.id, { x: n.x, y: n.y }]))
-    return out
-  }, [graph, effectiveMode])
-  const byId = useMemo(() => new Map(placed.map((n) => [n.id, n])), [placed])
-
-  useEffect(() => {
-    const svg = svgRef.current
-    if (!svg || zoomRef.current) return
-    const zoom = d3.zoom<SVGSVGElement, unknown>().scaleExtent([0.15, 4]).on('zoom', (e) => {
-      d3.select(gRef.current).attr('transform', e.transform.toString())
-      setZoomedIn((z) => (z === e.transform.k > 1.4 ? z : e.transform.k > 1.4))
-    })
-    zoomRef.current = zoom
-    d3.select(svg).call(zoom)
-  }, [])
-
-  const fit = useCallback((nodes: Placed[]) => {
-    const svg = svgRef.current
-    if (!svg || !zoomRef.current || !nodes.length) return
-    const xs = nodes.map((n) => n.x), ys = nodes.map((n) => n.y)
-    const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)]
-    const w = svg.clientWidth, h = svg.clientHeight
-    const k = Math.min(w / (x1 - x0 + 160), h / (y1 - y0 + 160), 1.6)
-    const t = d3.zoomIdentity.translate(w / 2 - ((x0 + x1) / 2) * k, h / 2 - ((y0 + y1) / 2) * k).scale(k)
-    d3.select(svg).transition().duration(400).call(zoomRef.current.transform, t)
-  }, [])
-  useEffect(() => {
-    const sig = `${effectiveMode}:${placed.length > 0}`
-    if (placed.length && fitted.current !== sig) { fitted.current = sig; fit(placed) }
-  }, [placed, effectiveMode, fit])
+  const R = 380
+  const nodes = useMemo<GNode[]>(() => (graph?.nodes ?? []).filter((n) => !hidden.has(n.type)).map((n) => ({
+    id: n.id, label: n.title, color: color(n.type), size: radius(n), hub: n.degree >= 4 || n.type === 'meta',
+    tip: `${n.title}\n${n.summary}${n.embedded ? '\n(vettore)' : ''}`,
+    fixed: effectiveMode === 'semantic' && n.sx != null && n.sy != null ? ([n.sx * R, n.sy * R, (n.sz ?? 0) * R] as [number, number, number]) : null,
+  })), [graph, hidden, effectiveMode])
+  const links = useMemo<GLink[]>(() => {
+    const visible = new Set(nodes.map((n) => n.id))
+    return (graph?.edges ?? []).filter((e) => visible.has(e.source) && visible.has(e.target))
+  }, [graph, nodes])
 
   const resolve = useMemo(() => {
     const m = new Map((page?.links ?? []).map((l) => [l.target.toLowerCase(), l.id]))
     return (t: string) => m.get(t.trim().toLowerCase()) ?? null
   }, [page])
 
-  const neighbours = useMemo(() => {
-    const focus = hover ?? selected
-    const s = new Set<string>()
-    if (focus) for (const e of graph?.edges ?? []) { if (e.source === focus) s.add(e.target); if (e.target === focus) s.add(e.source) }
-    return s
-  }, [graph, hover, selected])
   const hitIds = useMemo(() => new Set(hits.map((h) => h.id)), [hits])
 
   const run = async (what: 'ingest' | 'embed') => {
@@ -239,38 +179,11 @@ export function WikiView() {
     return [...c.entries()]
   }, [graph])
   const emb = stats?.embeddings
-  const focus = hover ?? selected
 
   return (
     <div className="wiki">
-      <svg ref={svgRef} width="100%" height="100%" style={{ cursor: 'grab' }} onClick={(e) => { if (e.target === svgRef.current) setSelected(null) }}>
-        <g ref={gRef}>
-          {graph?.edges.map((e) => {
-            const a = byId.get(e.source), b = byId.get(e.target)
-            if (!a || !b || hidden.has(a.type) || hidden.has(b.type)) return null
-            const on = focus && (e.source === focus || e.target === focus)
-            return <line key={`${e.source}>${e.target}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={on ? '#e6e9ff' : '#7f89b8'} strokeOpacity={on ? 0.8 : focus ? 0.07 : 0.22} strokeWidth={on ? 1.6 : 1} />
-          })}
-          {placed.map((n) => {
-            if (hidden.has(n.type)) return null
-            const dim = (focus && n.id !== focus && !neighbours.has(n.id)) || (hits.length > 0 && !hitIds.has(n.id))
-            const r = radius(n)
-            const showLabel = n.id === focus || n.id === selected || hitIds.has(n.id) || neighbours.has(n.id) || zoomedIn || n.degree >= 4
-            return (
-              <g key={n.id} transform={`translate(${n.x},${n.y})`} style={{ cursor: 'pointer', opacity: dim ? 0.18 : 1 }}
-                onMouseEnter={() => setHover(n.id)} onMouseLeave={() => setHover(null)} onClick={(e) => { e.stopPropagation(); setSelected(n.id) }}>
-                <title>{`${n.title}\n${n.summary}${n.embedded ? '\n(vettore)' : ''}`}</title>
-                {n.id === selected && <circle r={r + 6} fill="none" stroke="#fff" strokeOpacity={0.8} strokeDasharray="3 3" />}
-                {hitIds.has(n.id) && <circle r={r + 5} fill="none" stroke="#34f5a0" strokeWidth={2} />}
-                <circle r={r} fill={color(n.type)} fillOpacity={n.managed === 'auto' ? 0.55 : 0.92} stroke={color(n.type)} strokeWidth={n.embedded ? 2 : 0} strokeOpacity={0.35} />
-                {showLabel && <text x={r + 5} y={3.5} className="node-label" fill={color(n.type)}>{n.title.length > 34 ? `${n.title.slice(0, 33)}…` : n.title}</text>}
-              </g>
-            )
-          })}
-        </g>
-      </svg>
-
-      {!placed.length && <div className="empty wiki-empty">La wiki si riempie man mano che Brain lavora: stato, episodi, tool, lezioni e conoscenza compilata dai ricordi.</div>}
+      <GraphCanvas nodes={nodes} links={links} selected={selected} highlight={hitIds} onSelect={setSelected} fitKey={effectiveMode}
+        empty={<div className="empty wiki-empty">La wiki si riempie man mano che Brain lavora: stato, episodi, tool, lezioni e conoscenza compilata dai ricordi.</div>} />
 
       <div className="wiki-bar">
         <input value={q} placeholder="Cerca nella wiki…" onChange={(e) => setQ(e.target.value)} />
@@ -280,7 +193,6 @@ export function WikiView() {
             title={semanticReady ? 'Mappa semantica: pagine vicine = significato simile (PCA dei vettori)' : 'Servono almeno 3 pagine con vettore: premi "Vettori"'}>Mappa semantica</button>
         </div>
         {SPECIALS.map(([id, label]) => <button key={id} className={`btn mini ${selected === id ? 'on' : ''}`} onClick={() => setSelected(id)}>{label}</button>)}
-        <button className="btn mini" onClick={() => fit(placed)} title="Inquadra tutto">⤢</button>
         <button className="btn mini go" disabled={!!busy} onClick={() => run('ingest')} title="Rigenera le pagine dal database e integra i nuovi ricordi con il modello">
           {busy === 'ingest' ? <><span className="spin" /> Integro…</> : '↻ Aggiorna wiki'}
         </button>

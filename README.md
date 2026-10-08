@@ -78,7 +78,7 @@ Brain keeps a persistent, interlinked **markdown wiki** of what it knows about i
 * **Query**: agents have `wiki_search`, `wiki_read`, `wiki_note` (useful answers are filed back as notes) and get the most relevant pages injected when they start a task; the chat reply also sees them.
 * **Lint**: broken links (= pages to create, fed back to the librarian), orphans, stale pages, open contradictions, pages without vectors.
 * **Vectors**: pages (and memories) are embedded with `BRAIN_EMBED_MODEL` for semantic search and for the **semantic map**. LM Studio normally keeps one JIT model loaded: loading the embedding model can evict the chat model. With `BRAIN_EMBEDDINGS=auto` vectors are only computed/queried while the embedding model is already loaded, so for full semantic search load **both** models in LM Studio (and disable auto-evict). The **◈ Vettori** button forces the computation once (LM Studio loads the model, then Brain reloads the chat model).
-* **Wiki tab** (main stage): 2D map of the pages. *Collegamenti* = force layout by links; *Mappa semantica* = pages positioned by the PCA of their vectors (similar meaning = close). Click a node to read the page (links are clickable), legend chips hide types, search highlights matches; **Indice / Log / Salute / Schema** open the special files and **↻ Aggiorna wiki** syncs and ingests on demand.
+* **Wiki tab** (main stage): map of the pages (2D canvas or 3D, switch bottom-right; the choice is shared with the goal tree and the tools graph). *Collegamenti* = force layout by links; *Mappa semantica* = pages positioned by the PCA of their vectors (similar meaning = close; 3 components in 3D). Click a node to read the page (links are clickable), legend chips hide types, search highlights matches; **Indice / Log / Salute / Schema** open the special files and **↻ Aggiorna wiki** syncs and ingests on demand.
 
 **LM Studio robustness**: if the model gets unloaded mid-request Brain waits for it to reload (a 1-token request triggers LM Studio's JIT loader) and retries. Embeddings are only used when their model is already loaded (`BRAIN_EMBEDDINGS=auto`): requesting an unloaded embedding model makes LM Studio swap models and evict the chat model.
 
@@ -86,9 +86,9 @@ Brain keeps a persistent, interlinked **markdown wiki** of what it knows about i
 | View | What it shows |
 |---|---|
 | Rete neurale (3D / 2D / Off switch) | Mind core (size = awareness index, pulses while the LLM is busy), agents orbiting by depth, Lorenzo / Internet / Sandbox / Memory nodes, custom tools, message & tool-call pulses, live token stream |
-| Albero obiettivi | d3 goal tree, colour = status, dashed ring = predicted success probability |
-| Agenti ↔ Tool | force graph of which agent uses which tool |
-| Wiki | 2D map of the wiki (links or semantic layout) with a page reader |
+| Albero obiettivi | goal tree on the shared graph canvas ([react-force-graph](https://github.com/vasturiano/react-force-graph)): tidy tree left-to-right in 2D, radial in 3D; colour = status, ring = predicted success, click a node for its details |
+| Agenti ↔ Tool | which agent uses which tool (link width = call count), same 2D/3D canvas |
+| Wiki | map of the wiki (links or semantic layout, 2D or 3D) with a page reader |
 | Right panel | awareness gauge + calibration/introspection/success bars, LLM tok/s, CPU, RAM sparklines |
 | Left panel | live agents and the evolving self-model |
 | Dock | live event feed, chat with Brain, project status, memories, journal, lessons, tools, evolution history |

@@ -158,8 +158,8 @@ async def test_vectors_semantic_search_and_2d_map_with_real_embedding_model(wb):
     assert hits[0]["id"] == "concepts/astronomia", hits
     g = w.graph()
     assert len(g["nodes"]) >= 8 and all(n["embedded"] for n in g["nodes"])
-    assert all(-1.0 <= n["sx"] <= 1.0 and -1.0 <= n["sy"] <= 1.0 for n in g["nodes"])
-    assert len({(n["sx"], n["sy"]) for n in g["nodes"]}) == len(g["nodes"])  # distinct positions
+    assert all(-1.0 <= n[k] <= 1.0 for n in g["nodes"] for k in ("sx", "sy", "sz"))
+    assert len({(n["sx"], n["sy"], n["sz"]) for n in g["nodes"]}) == len(g["nodes"])  # distinct positions
     assert {"source": "concepts/cucina", "target": "status"} in g["edges"]
 
 
@@ -181,6 +181,18 @@ async def test_ingest_with_real_llm_creates_linked_pages_and_advances_cursor(wb)
     log = (w.dir / "log.md").read_text()
     assert re.search(r"^## \[[\d\- :]+\] ingest \| \d+ pagine da 3 ricordi e 1 voci", log, re.M)
     assert await w.ingest() == {"pages": 0, "items": 0}  # nothing new
+
+
+async def test_semantic_map_has_three_distinct_normalised_coordinates(wb):
+    w = wb.wiki
+    vecs = {"concepts/a": [1, 0, 0, 0, 0], "concepts/b": [0, 1, 0, 0, 0], "concepts/c": [0, 0, 1, 0, 0], "concepts/d": [1, 1, 1, 1, 1]}
+    for pid, v in vecs.items():
+        w.write_page(pid, pid, "concept", pid, f"Pagina {pid} collegata a [[status]].", managed="llm")
+        wb.db.execute("UPDATE wiki_pages SET embedding=? WHERE id=?", (json.dumps(v), pid))
+    nodes = {n["id"]: n for n in w.graph()["nodes"]}
+    pts = [(nodes[p]["sx"], nodes[p]["sy"], nodes[p]["sz"]) for p in vecs]
+    assert all(-1.0 <= c <= 1.0 for pt in pts for c in pt) and len(set(pts)) == 4
+    assert nodes["status"]["sx"] is None  # pages without a vector float by their links
 
 
 async def test_ingest_page_validation_sources_and_user_pages_are_protected(wb):

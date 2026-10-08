@@ -29,7 +29,7 @@ const DOCK = { feed: 'Eventi live', chat: 'Chat', status: 'Stato', memories: 'Ri
 export default function App() {
   useBrainSocket()
   const [stage, setStageState] = useState<keyof typeof STAGE>(() => {
-    const h = location.hash.slice(1)
+    const h = location.hash.slice(1).split(':')[0]
     return h in STAGE ? (h as keyof typeof STAGE) : 'neural'
   })
   const setStage = (s: keyof typeof STAGE) => { history.replaceState(null, '', `#${s}`); setStageState(s) }
@@ -70,7 +70,7 @@ export default function App() {
           </ErrorBoundary>
         </div>
         {stage === 'neural' && vmode !== 'off' && <LiveThoughts />}
-        {stage !== 'wiki' && <StartOverlay />}
+        {stage === 'neural' && <StartOverlay />}
       </main>
       <aside style={{ gridColumn: 3, gridRow: 2, display: 'flex', minHeight: 0 }}>
         <MetricsPanel />

@@ -1,70 +1,79 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useMemo, useState } from 'react'
 import * as d3 from 'd3'
 import { useBrain } from '../store'
 import type { Goal } from '../types'
+import { GraphCanvas, type GLink, type GNode } from './Graph'
 
 const STATUS_COLOR: Record<string, string> = {
   pending: '#7f89b8', active: '#22d3ee', done: '#34f5a0', failed: '#ff4d6d', cancelled: '#4b5578',
 }
+const STATUS_LABEL: Record<string, string> = { pending: 'in coda', active: 'in corso', done: 'riuscito', failed: 'fallito', cancelled: 'annullato' }
+const ROW = 38  // px between siblings (2D)
+const COL = 310  // px between levels (2D): wide enough for a full label
+const RING = 190  // radius step (3D)
 
-interface TNode { goal: Goal; children: TNode[] }
+interface T { id: number; children: T[] }
 
-/** 2D goal tree (d3 tree layout) with zoom/pan; colours show status, ring shows predicted success. */
+/** Tidy-tree positions: left-to-right in 2D, radial in 3D. Orphans (missing parent) become extra roots. */
+function layout(goals: Goal[], mode: '2d' | '3d'): Map<string, [number, number, number]> {
+  const ids = new Set(goals.map((g) => g.id))
+  const kids = new Map<number, Goal[]>()
+  for (const g of [...goals].sort((a, b) => a.id - b.id)) {
+    const key = g.parent_id != null && ids.has(g.parent_id) ? g.parent_id : -1
+    kids.set(key, [...(kids.get(key) ?? []), g])
+  }
+  const build = (id: number): T => ({ id, children: (kids.get(id) ?? []).map((g) => build(g.id)) })
+  const root = d3.hierarchy<T>({ id: -1, children: (kids.get(-1) ?? []).map((g) => build(g.id)) }, (n) => n.children)
+  const out = new Map<string, [number, number, number]>()
+  if (mode === '2d') {
+    d3.tree<T>().nodeSize([ROW, COL])(root)
+    root.each((n) => { if (n.depth > 0) out.set(String(n.data.id), [(n.depth - 1) * COL, n.x ?? 0, 0]) })
+  } else {
+    d3.tree<T>().size([2 * Math.PI, 1]).separation((a, b) => (a.parent === b.parent ? 1 : 2) / Math.max(a.depth, 1))(root)
+    root.each((n) => {
+      if (n.depth === 0) return
+      const r = (n.depth - 1) * RING, a = n.x ?? 0
+      out.set(String(n.data.id), [r * Math.cos(a), r * Math.sin(a), (n.depth - 1) * 45])
+    })
+  }
+  return out
+}
+
+/** Goal tree on the shared graph canvas (2D or 3D); colour = status, ring = predicted success. */
 export function GoalTree() {
   const goalsMap = useBrain((s) => s.goals)
-  const svgRef = useRef<SVGSVGElement>(null)
-  const gRef = useRef<SVGGElement>(null)
-  const goals = useMemo(() => Object.values(goalsMap), [goalsMap])
+  const mode = useBrain((s) => s.graphMode)
+  const [selected, setSelected] = useState<string | null>(null)
 
-  const layout = useMemo(() => {
-    if (!goals.length) return null
-    const byParent = new Map<number | null, Goal[]>()
-    goals.forEach((g) => byParent.set(g.parent_id, [...(byParent.get(g.parent_id) ?? []), g]))
-    const build = (g: Goal): TNode => ({ goal: g, children: (byParent.get(g.id) ?? []).map(build) })
-    const roots = byParent.get(null) ?? []
-    if (!roots.length) return null
-    const root = d3.hierarchy<TNode>(build(roots[0]), (n) => n.children)
-    d3.tree<TNode>().nodeSize([26, 190])(root)
-    return root
-  }, [goals])
+  const { nodes, links } = useMemo(() => {
+    const goals = Object.values(goalsMap)
+    const pos = layout(goals, mode)
+    const nodes: GNode[] = goals.map((g) => ({
+      id: String(g.id), label: g.title, color: STATUS_COLOR[g.status] ?? '#7f89b8',
+      size: g.parent_id == null ? 11 : 5 + (g.priority ?? 0.5) * 5, hub: g.parent_id == null,
+      arc: g.expected_success ?? undefined, tip: `${g.title}\n[${STATUS_LABEL[g.status] ?? g.status}] ${g.description ?? ''}\n${g.result ?? ''}`.trim(),
+      fixed: pos.get(String(g.id)) ?? null,
+    }))
+    const links: GLink[] = goals
+      .filter((g) => g.parent_id != null && goalsMap[g.parent_id])
+      .map((g) => ({ source: String(g.parent_id), target: String(g.id), color: STATUS_COLOR[g.status] }))
+    return { nodes, links }
+  }, [goalsMap, mode])
 
-  useEffect(() => {
-    if (!svgRef.current || !gRef.current) return
-    const svg = d3.select(svgRef.current)
-    const zoom = d3.zoom<SVGSVGElement, unknown>().scaleExtent([0.3, 2.5]).on('zoom', (e) => {
-      d3.select(gRef.current).attr('transform', e.transform.toString())
-    })
-    svg.call(zoom)
-    svg.call(zoom.transform, d3.zoomIdentity.translate(40, 200).scale(0.9))
-  }, [])
-
-  if (!layout) return <div className="empty">Nessun obiettivo ancora.</div>
-  const nodes = layout.descendants()
-  const links = layout.links()
-  const link = d3.linkHorizontal<any, any>().x((d) => d.y).y((d) => d.x)
-
+  const g = selected ? goalsMap[Number(selected)] : null
   return (
-    <svg ref={svgRef} width="100%" height="100%" style={{ cursor: 'grab' }}>
-      <g ref={gRef}>
-        {links.map((l) => (
-          <path key={l.target.data.goal.id} d={link(l) ?? ''} fill="none" stroke={STATUS_COLOR[l.target.data.goal.status]} strokeOpacity={0.5} strokeWidth={1.4} />
-        ))}
-        {nodes.map((n) => {
-          const g = n.data.goal
-          const c = STATUS_COLOR[g.status] ?? '#7f89b8'
-          const r = 5 + (g.priority ?? 0.5) * 5
-          return (
-            <g key={g.id} transform={`translate(${n.y},${n.x})`}>
-              <title>{`${g.title}\n${g.description}\n${g.result ?? ''}`}</title>
-              {g.expected_success != null && <circle r={r + 4} fill="none" stroke={c} strokeOpacity={0.35} strokeDasharray={`${g.expected_success * 2 * Math.PI * (r + 4)} 999`} />}
-              <circle r={r} fill={c} fillOpacity={0.85}>
-                {g.status === 'active' && <animate attributeName="r" values={`${r};${r + 3};${r}`} dur="1.2s" repeatCount="indefinite" />}
-              </circle>
-              <text x={r + 8} y={4} className="node-label" fill={c}>{g.title.length > 38 ? g.title.slice(0, 37) + '…' : g.title}</text>
-            </g>
-          )
-        })}
-      </g>
-    </svg>
+    <>
+      <GraphCanvas nodes={nodes} links={links} dag selected={selected} onSelect={setSelected} fitKey={String(nodes.length)}
+        empty={<div className="empty">Nessun obiettivo ancora.</div>} />
+      {g && (
+        <div className="goal-card">
+          <button className="x" onClick={() => setSelected(null)} aria-label="Chiudi">×</button>
+          <b>#{g.id} {g.title}</b>
+          <small style={{ color: STATUS_COLOR[g.status] }}>{STATUS_LABEL[g.status] ?? g.status} · priorità {(g.priority ?? 0).toFixed(1)}{g.expected_success != null && <> · successo atteso {Math.round(g.expected_success * 100)}%</>}</small>
+          {g.description && <p>{g.description}</p>}
+          {g.result && <p className="res">{g.result}</p>}
+        </div>
+      )}
+    </>
   )
 }

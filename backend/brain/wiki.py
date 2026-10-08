@@ -163,16 +163,16 @@ def _links(body: str) -> list[str]:
     return sorted({t.strip() for t in WIKILINK.findall(body) if t.strip()})
 
 
-def _pca2(vectors: list[np.ndarray]) -> list[tuple[float, float]]:
-    """2D semantic map: first two principal components of the page vectors, scaled to [-1, 1]."""
+def _pca3(vectors: list[np.ndarray]) -> list[tuple[float, float, float]]:
+    """Semantic map: first three principal components of the page vectors, scaled to [-1, 1] (2D view uses x,y)."""
     x = np.array(vectors, dtype=float)
     x = x - x.mean(axis=0)
     _, _, vt = np.linalg.svd(x, full_matrices=False)
-    xy = x @ vt[:2].T
-    if xy.shape[1] < 2:
-        xy = np.hstack([xy, np.zeros((len(xy), 1))])
+    xy = x @ vt[:3].T
+    if xy.shape[1] < 3:
+        xy = np.hstack([xy, np.zeros((len(xy), 3 - xy.shape[1]))])
     scale = np.abs(xy).max() or 1.0
-    return [(round(float(a / scale), 4), round(float(b / scale), 4)) for a, b in xy]
+    return [(round(float(a / scale), 4), round(float(b / scale), 4), round(float(c / scale), 4)) for a, b, c in xy]
 
 
 class Wiki:
@@ -743,15 +743,16 @@ class Wiki:
             deg[a] += 1
             deg[c] += 1
         vecs = {r["id"]: v for r in rows if (v := self._vector(r)) is not None}
-        sem: dict[str, tuple[float, float]] = {}
+        sem: dict[str, tuple[float, float, float]] = {}
         if len(vecs) >= 3:
             try:
-                sem = dict(zip(vecs, _pca2(list(vecs.values()))))
+                sem = dict(zip(vecs, _pca3(list(vecs.values()))))
             except np.linalg.LinAlgError:
                 sem = {}
         nodes = [
             {"id": r["id"], "title": r["title"], "type": r["type"], "summary": r["summary"], "updated": r["updated"], "managed": r["managed"],
-             "degree": deg[r["id"]], "embedded": r["id"] in vecs, "sx": sem.get(r["id"], (None, None))[0], "sy": sem.get(r["id"], (None, None))[1]}
+             "degree": deg[r["id"]], "embedded": r["id"] in vecs,
+             **dict(zip(("sx", "sy", "sz"), sem.get(r["id"], (None, None, None))))}
             for r in rows
         ]
         return {"nodes": nodes, "edges": [{"source": a, "target": c} for a, c in sorted(edges)]}

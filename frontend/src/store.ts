@@ -51,6 +51,8 @@ interface Store {
   streamTps: Record<string, number>
   thoughtsInset: number  // left px covered by the live-thoughts panel (lets 2D views avoid it)
   wikiRev: number  // bumped on every wiki.update event so the wiki view refetches
+  graphMode: '2d' | '3d'  // shared by the goal tree and the wiki graph
+  setGraphMode: (m: '2d' | '3d') => void
   sys: { cpu: number; mem: number; tps: number; tokens: number; llm_busy: number; llm_queued: number; calls: number; uptime: number; live_agents: number }
   setConnected: (c: boolean) => void
   applySnapshot: (s: any) => void
@@ -66,6 +68,8 @@ export const useBrain = create<Store>((set, get) => ({
   control: { state: 'idle', cycle: 0, max_cycles: 0, max_tokens: 0 },
   goals: {}, agents: {}, tools: [], customTools: [], toolCalls: {}, activity: {}, pulses: [], events: [], history: [],
   metrics: EMPTY_METRICS, health: {}, selfmodel: null, journal: [], chat: [], evolutions: [], lessons: [], streams: {}, streamTps: {}, thoughtsInset: 0, wikiRev: 0,
+  graphMode: location.hash.endsWith(':3d') || localStorage.getItem('brain.graphmode') === '3d' ? '3d' : '2d',
+  setGraphMode: (graphMode) => { localStorage.setItem('brain.graphmode', graphMode); set({ graphMode }) },
   sys: { cpu: 0, mem: 0, tps: 0, tokens: 0, llm_busy: 0, llm_queued: 0, calls: 0, uptime: 0, live_agents: 0 },
 
   setConnected: (connected) => set({ connected }),
