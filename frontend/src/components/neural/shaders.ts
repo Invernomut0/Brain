@@ -28,7 +28,7 @@ void main() {
   vW = w;
   vec4 mv = modelViewMatrix * vec4(position, 1.0);
   gl_Position = projectionMatrix * mv;
-  gl_PointSize = uSize * (0.35 + w * 1.8 * uBoost) * (300.0 / -mv.z);
+  gl_PointSize = uSize * (0.35 + w * 1.1 * uBoost) * (300.0 / -mv.z);
 }`
 
 export const edgeFragment = /* glsl */ `
@@ -37,7 +37,7 @@ varying float vW;
 void main() {
   float a = 1.0;
   if (uPoint > 0.5) { a = smoothstep(0.5, 0.0, length(gl_PointCoord - 0.5)); }
-  gl_FragColor = vec4(uColor * (1.0 + vW * uBoost * 2.0), a * (uAlpha + vW * uBoost));
+  gl_FragColor = vec4(uColor * (1.0 + vW * uBoost), a * (uAlpha + vW * uBoost * 0.5));
 }`
 
 export const particleVertex = /* glsl */ `
@@ -56,7 +56,7 @@ void main() {
   if (vL <= 0.0) discard;
   float d = length(gl_PointCoord - 0.5);
   float a = smoothstep(0.5, 0.0, d);
-  gl_FragColor = vec4(vC, a * a * 1.6 * vL);
+  gl_FragColor = vec4(vC, a * a * 1.0 * vL);
 }`
 
 export const dustVertex = /* glsl */ `
@@ -67,14 +67,14 @@ void main() {
   vTw = 0.5 + 0.5 * sin(uTime * 1.5 + aSeed * 40.0);
   vec4 mv = modelViewMatrix * vec4(p, 1.0);
   gl_Position = projectionMatrix * mv;
-  gl_PointSize = (1.2 + aSeed * 2.2) * uPx * (120.0 / -mv.z);
+  gl_PointSize = (0.7 + aSeed * 1.1) * uPx * (80.0 / -mv.z);
 }`
 
 export const dustFragment = /* glsl */ `
 varying float vTw;
 void main() {
   float a = smoothstep(0.5, 0.0, length(gl_PointCoord - 0.5));
-  gl_FragColor = vec4(vec3(0.55, 0.7, 1.0), a * (0.15 + 0.35 * vTw));
+  gl_FragColor = vec4(vec3(0.5, 0.62, 0.95), a * (0.05 + 0.14 * vTw));
 }`
 
 export const floorVertex = /* glsl */ `
@@ -91,8 +91,8 @@ void main() {
   float ring = smoothstep(0.08, 0.0, abs(fract(r / 6.0 + 0.5) - 0.5) * 6.0);
   float tick = smoothstep(0.05, 0.0, abs(fract(ang / 6.2831 * 48.0 + 0.5) - 0.5) * r * 6.2831 / 48.0) * step(r, 36.0);
   float s = mod(ang - uTime * (0.5 + uBusy * 0.7), 6.2831);
-  float sweep = pow(1.0 - s / 6.2831, 6.0) * step(r, 42.0);
+  float sweep = pow(1.0 - s / 6.2831, 14.0) * step(r, 42.0);
   float fade = smoothstep(46.0, 6.0, r);
-  vec3 col = uColor * (ring * 0.55 + tick * 0.3 + sweep * (0.3 + 0.5 * uBusy));
+  vec3 col = uColor * (ring * 0.4 + tick * 0.2 + sweep * (0.1 + 0.2 * uBusy));
   gl_FragColor = vec4(col, length(col) * fade);
 }`

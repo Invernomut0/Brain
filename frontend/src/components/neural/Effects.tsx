@@ -30,7 +30,7 @@ export function ParticleLayer() {
 }
 
 /** Slowly drifting, twinkling dust that gives the space depth. */
-export function Dust({ count = 700 }: { count?: number }) {
+export function Dust({ count = 260 }: { count?: number }) {
   const gl = useThree((s) => s.gl)
   const { geo, mat } = useMemo(() => {
     const p = new Float32Array(count * 3), seed = new Float32Array(count)
@@ -68,8 +68,8 @@ export function Shockwaves() {
       m.quaternion.copy(s.camera.quaternion)
       m.scale.setScalar(0.5 + age * sh.size * 2.2)
       const mat = m.material as THREE.MeshBasicMaterial
-      mat.opacity = (1 - age) ** 2 * 0.9
-      mat.color.copy(sh.color).multiplyScalar(2.2)
+      mat.opacity = (1 - age) ** 2 * 0.5
+      mat.color.copy(sh.color).multiplyScalar(1.5)
     }
   })
   return (
@@ -108,19 +108,19 @@ export function PulseSystem() {
       if (!a || !b) return false
       const t = (now - c.t0) / c.dur
       if (t >= 1) {
-        burst(b, c.color, 26, 3.2, 0.8)
+        burst(b, c.color, 12, 2.4, 0.5)
         nodeFlash.set(c.to, now)
         pushShock(b, c.color, c.to === 'core' ? 3.2 : 1.5)
         return false
       }
       const e = t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2
       arcPoint(a, b, e, tmp)
-      hot.copy(c.color).lerp(new THREE.Color('#ffffff'), 0.5).multiplyScalar(2.4)
-      particles.spawn(tmp.x, tmp.y, tmp.z, 0, 0, 0, hot, 1.9, 0.07)
-      for (let k = 0; k < 3; k++) {
+      hot.copy(c.color).lerp(new THREE.Color('#ffffff'), 0.3).multiplyScalar(1.8)
+      particles.spawn(tmp.x, tmp.y, tmp.z, 0, 0, 0, hot, 1.1, 0.06)
+      for (let k = 0; k < 2; k++) {
         particles.spawn(
-          tmp.x, tmp.y, tmp.z, (Math.random() - 0.5) * 0.8, (Math.random() - 0.5) * 0.8, (Math.random() - 0.5) * 0.8,
-          hot.copy(c.color).multiplyScalar(1.6), 0.55, 0.5 + Math.random() * 0.4,
+          tmp.x, tmp.y, tmp.z, (Math.random() - 0.5) * 0.6, (Math.random() - 0.5) * 0.6, (Math.random() - 0.5) * 0.6,
+          hot.copy(c.color).multiplyScalar(1.2), 0.32, 0.4 + Math.random() * 0.3,
         )
       }
       return true

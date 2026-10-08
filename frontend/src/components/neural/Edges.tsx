@@ -21,7 +21,7 @@ export function Edge({ from, to, color, boost }: { from: string; to: string; col
     })
     const l = new THREE.Line(g, mk(0, 0, 0.1))
     l.frustumCulled = false
-    return { geo: g, lineObj: l, line: l.material as THREE.ShaderMaterial, dots: mk(1, 5, 0.0) }
+    return { geo: g, lineObj: l, line: l.material as THREE.ShaderMaterial, dots: mk(1, 3, 0.0) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const tmp = useMemo(() => new THREE.Vector3(), [])
@@ -38,10 +38,10 @@ export function Edge({ from, to, color, boost }: { from: string; to: string; col
     const k = boost()
     for (const m of [line, dots]) {
       m.uniforms.uTime.value = s.clock.elapsedTime
-      m.uniforms.uBoost.value = 0.25 + k * 1.4
-      m.uniforms.uSpeed.value = 0.3 + k * 0.9
+      m.uniforms.uBoost.value = 0.2 + k * 0.7
+      m.uniforms.uSpeed.value = 0.25 + k * 0.5
     }
-    line.uniforms.uAlpha.value = 0.07 + k * 0.22
+    line.uniforms.uAlpha.value = 0.05 + k * 0.1
   })
 
   return (

@@ -62,10 +62,10 @@ function Scene() {
 
   return (
     <>
-      <Halo color="#3b2a9a" scale={90} opacity={0.22} />
-      <group position={[-34, 12, -44]}><Halo color="#4b3bd0" scale={80} opacity={0.2} /></group>
-      <group position={[38, -6, -48]}><Halo color="#0e7490" scale={80} opacity={0.2} /></group>
-      <group position={[4, 26, -52]}><Halo color="#9d2a85" scale={70} opacity={0.16} /></group>
+      <Halo color="#3b2a9a" scale={90} opacity={0.12} />
+      <group position={[-34, 12, -44]}><Halo color="#4b3bd0" scale={80} opacity={0.1} /></group>
+      <group position={[38, -6, -48]}><Halo color="#0e7490" scale={80} opacity={0.08} /></group>
+      <group position={[4, 26, -52]}><Halo color="#9d2a85" scale={70} opacity={0.08} /></group>
 
       <RadarFloor busy={busy} />
       <CoreNode />
@@ -103,11 +103,11 @@ export function Neural3D() {
     <Canvas camera={{ position: [0, 12, 29], fov: 50 }} dpr={[1, 2]} gl={{ antialias: true }}>
       <color attach="background" args={['#03040b']} />
       <ambientLight intensity={0.3} />
-      <Stars radius={110} depth={60} count={4500} factor={4} fade speed={0.7} />
+      <Stars radius={110} depth={60} count={2200} factor={3} fade speed={0.5} />
       <Scene />
       <OrbitControls enableDamping autoRotate autoRotateSpeed={0.3} maxDistance={55} minDistance={9} maxPolarAngle={Math.PI * 0.62} />
       <EffectComposer>
-        <Bloom intensity={1.5} luminanceThreshold={0.1} luminanceSmoothing={0.5} mipmapBlur radius={0.85} />
+        <Bloom intensity={1.0} luminanceThreshold={0.25} luminanceSmoothing={0.5} mipmapBlur radius={0.7} />
         <ChromaticAberration offset={aberration} radialModulation={false} modulationOffset={0} />
         <Noise opacity={0.025} />
         <Vignette eskil={false} offset={0.2} darkness={0.85} />

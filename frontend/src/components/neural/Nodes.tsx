@@ -62,10 +62,10 @@ export function CoreNode() {
     if (wire.current) { wire.current.rotation.y += dt * (0.2 + busy * 0.9); wire.current.rotation.x += dt * 0.1; (wire.current.material as THREE.MeshBasicMaterial).color.copy(tint).multiplyScalar(1.5) }
     if (orb.current) orb.current.scale.setScalar((0.95 + aw * 0.8) * (1 + Math.sin(t * (running ? 3 : 1)) * 0.04 + busy * 0.08 + energyOf('core') * 0.12))
     if (halo.current) {
-      const sp = 11 + e * 3 + Math.sin(t * 2) * 0.5
+      const sp = 9 + e * 2 + Math.sin(t * 2) * 0.4
       halo.current.scale.set(sp, sp, 1)
       ;(halo.current.material as THREE.SpriteMaterial).color.copy(tint)
-      ;(halo.current.material as THREE.SpriteMaterial).opacity = 0.3 + e * 0.22
+      ;(halo.current.material as THREE.SpriteMaterial).opacity = 0.18 + e * 0.12
     }
     rings.current.forEach((r, i) => {
       if (!r) return
@@ -75,7 +75,7 @@ export function CoreNode() {
     })
     if (swirl.current) { swirl.current.rotation.y += dt * (0.25 + busy * 1.1); swirl.current.rotation.z += dt * 0.07 }
     // thinking energy radiating out of the core
-    emit(dt, busy ? 36 : running ? 6 : 0, () => {
+    emit(dt, busy ? 18 : running ? 3 : 0, () => {
       const u = rnd(2), th = Math.random() * 6.283, r = Math.sqrt(Math.max(0, 1 - u * u)), k = 2.2 + Math.random() * 1.6
       particles.spawn(r * Math.cos(th) * 2, u * 2, r * Math.sin(th) * 2, r * Math.cos(th) * k, u * k, r * Math.sin(th) * k, tint.clone().multiplyScalar(1.7), 0.6, 1.3, 0.8)
     })
@@ -150,12 +150,12 @@ export function AgentNode({ a, now }: { a: AgentView; now: number }) {
     if (ringB.current) { ringB.current.rotation.z -= dt * speed * 1.2; ringB.current.rotation.x += dt * speed * 0.4 }
     const e = energy()
     if (halo.current) {
-      const sp = 3.2 + e * 1.8
+      const sp = 2.6 + e * 1.0
       halo.current.scale.set(sp, sp, 1)
-      ;(halo.current.material as THREE.SpriteMaterial).opacity = (0.25 + e * 0.3) * fade
+      ;(halo.current.material as THREE.SpriteMaterial).opacity = (0.1 + e * 0.16) * fade
     }
     col.set(base).multiplyScalar(1.8)
-    const rate = st === 'acting' ? 46 : st === 'thinking' ? 16 : 0
+    const rate = st === 'acting' ? 22 : st === 'thinking' ? 8 : 0
     emit(dt, rate, () => {
       const th = Math.random() * 6.283, k = st === 'acting' ? 2.4 : 1.0
       particles.spawn(
@@ -210,11 +210,11 @@ export function Satellite({ id, color, label, kind }: { id: string; color: strin
     if (spin.current) spin.current.rotation.y += dt * (0.35 + e * 2.2)
     if (spin2.current) { spin2.current.rotation.y -= dt * (0.6 + e * 2.5); spin2.current.rotation.x += dt * 0.3 }
     if (halo.current) {
-      const sp = (kind === 'tool' ? 3.4 : 5.2) + e * 2.4
+      const sp = (kind === 'tool' ? 2.6 : 4.0) + e * 1.4
       halo.current.scale.set(sp, sp, 1)
-      ;(halo.current.material as THREE.SpriteMaterial).opacity = 0.22 + e * 0.5
+      ;(halo.current.material as THREE.SpriteMaterial).opacity = 0.12 + e * 0.28
     }
-    emit(dt, e > 0.35 ? 30 * e : 0, () => {
+    emit(dt, e > 0.35 ? 16 * e : 0, () => {
       const u = rnd(2), th = Math.random() * 6.283, r = Math.sqrt(Math.max(0, 1 - u * u)), k = 1.5 + Math.random()
       particles.spawn(live.x, live.y, live.z, r * Math.cos(th) * k, u * k, r * Math.sin(th) * k, col, 0.45, 0.9)
     })
