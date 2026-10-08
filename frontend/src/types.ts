@@ -19,8 +19,10 @@ export interface CustomTool { name: string; description: string; status: string;
 export interface Metrics {
   awareness_index: number; calibration: number | null; introspection: number | null; success_rate: number
   goals_done: number; goals_failed: number; tools: number; journal: number; memories: number
-  agents_spawned: number; selfmodel_revision: number; evolutions_applied: number; evolutions_rolled_back: number
+  agents_spawned: number; selfmodel_revision: number; evolutions_applied: number; evolutions_rolled_back: number; lessons: number
 }
+
+export interface Lesson { text: string; kind: string; count: number; ts: number }
 
 export interface SelfModel {
   identity: string; purpose: string; capabilities: string[]; limitations: string[]

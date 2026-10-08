@@ -1,6 +1,7 @@
 """ReAct-style agent: think -> act (tool) -> observe, until `finish`."""
 from __future__ import annotations
 
+import difflib
 import json
 import time
 import uuid
@@ -39,13 +40,16 @@ class Agent:
         self.inbox: list[tuple[str, str]] = []
         self.trace: list[dict[str, Any]] = []
         self.steps = 0
+        self._fails: dict[str, tuple[str, str]] = {}
 
     # -- prompt ------------------------------------------------------------
     def _system(self) -> str:
         names = ROLE_TOOLS.get(self.role)
         base = self.custom_prompt or self.brain.evolution.prompt(self.role)
+        lessons = self.brain.lessons.render(8)
+        learned = f"LEZIONI APPRESE da errori passati (non ripeterli):\n{lessons}\n\n" if lessons else ""
         return (
-            f"{base}\n\nTool disponibili:\n{self.brain.tools.describe(names)}\n\n{PROTOCOL}\n\n"
+            f"{base}\n\nTool disponibili:\n{self.brain.tools.describe(names)}\n\n{PROTOCOL}\n\n{learned}"
             f"Il tuo id: {self.id}. Ruolo: {self.role}.\nSelf-model:\n{self.brain.selfmodel.render()}"
         )
 
@@ -67,6 +71,7 @@ class Agent:
         allowed = b.tools.all(names)
         msgs: list[dict] = [{"role": "system", "content": self._system()}, {"role": "user", "content": f"COMPITO:\n{self.task}"}]
         success, summary = False, "nessun risultato"
+        format_errors = 0
         try:
             for _ in range(self.max_steps):
                 await b.control.gate()
@@ -75,7 +80,19 @@ class Agent:
                     msgs.append({"role": "user", "content": f"[messaggio da {frm}] {txt}"})
                 self.steps += 1
                 await self._state("thinking")
-                step = await b.llm.chat_json(msgs, agent=self.id, purpose=f"{self.role} step {self.steps}", temperature=0.6, max_tokens=1800)
+                try:
+                    step = await b.llm.chat_json(msgs, agent=self.id, purpose=f"{self.role} step {self.steps}", temperature=0.6, max_tokens=1800, retries=1)
+                except LLMError as e:
+                    if "valid JSON" not in str(e) or format_errors >= 2:
+                        raise
+                    # A malformed reply is not fatal: remember the lesson and resample the same step.
+                    format_errors += 1
+                    await b.lessons.add(
+                        "Rispondi sempre con UN solo oggetto JSON {thought, action, args}; il codice multilinea nelle stringhe va con \\n escape, mai a capo letterali.",
+                        "format",
+                    )
+                    continue
+                format_errors = 0
                 action, args = str(step.get("action", "")), step.get("args") or {}
                 if not isinstance(args, dict):
                     args = {}
@@ -104,14 +121,27 @@ class Agent:
     async def _act(self, action: str, args: dict, allowed: dict) -> str:
         b = self.brain
         if action not in allowed:
-            return f"ERRORE: tool '{action}' inesistente. Disponibili: {', '.join(allowed)}"
+            close = difflib.get_close_matches(action, list(allowed), n=3)
+            b.lessons.log_failure(action or "?", "", "tool inesistente")
+            return (
+                f"ERRORE: tool '{action}' inesistente." + (f" Forse intendevi: {', '.join(close)}." if close else "")
+                + f" Disponibili: {', '.join(allowed)}"
+            )
         await self._state("acting", action)
         await b.bus.publish("tool.call", self.id, tool=action, args=_clip(args, 300))
         try:
             res = await b.tools.call(ToolContext(b, self), action, args)
-            ok, obs = True, _clip(res, 2500)
+            ok, obs = not (isinstance(res, dict) and res.get("ok") is False), _clip(res, 2500)
         except Exception as e:  # noqa: BLE001
             ok, obs = False, f"ERRORE {type(e).__name__}: {str(e)[:900]}"
+        args_s = json.dumps(args, ensure_ascii=False, default=str)[:160]
+        if ok and action in self._fails:
+            bad_args, err = self._fails.pop(action)
+            b.lessons.mark_resolved(action)
+            await b.lessons.add(f"{action}: la chiamata {bad_args} falliva con '{err}'; ha funzionato con {args_s}", "fix")
+        elif not ok:
+            self._fails[action] = (args_s, obs[:140])
+            b.lessons.log_failure(action, args_s, obs)
         self.trace.append({"tool": action, "ok": ok, "obs": obs[:300]})
         await b.bus.publish("tool.result", self.id, tool=action, ok=ok, preview=obs[:200])
         return obs

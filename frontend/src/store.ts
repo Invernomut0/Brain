@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type {
-  AgentView, BrainEvent, ChatMsg, Control, CustomTool, Evolution, Goal, Health, JournalEntry,
+  AgentView, BrainEvent, ChatMsg, Control, CustomTool, Evolution, Goal, Health, JournalEntry, Lesson,
   Metrics, Pulse, SelfModel, SysPoint, ToolInfo,
 } from './types'
 
@@ -12,7 +12,7 @@ export const roleColor = (r: string) => ROLE_COLOR[r] ?? '#94a3b8'
 
 const EMPTY_METRICS: Metrics = {
   awareness_index: 0, calibration: null, introspection: null, success_rate: 0, goals_done: 0, goals_failed: 0,
-  tools: 0, journal: 0, memories: 0, agents_spawned: 0, selfmodel_revision: 0, evolutions_applied: 0, evolutions_rolled_back: 0,
+  tools: 0, journal: 0, memories: 0, agents_spawned: 0, selfmodel_revision: 0, evolutions_applied: 0, evolutions_rolled_back: 0, lessons: 0,
 }
 
 const WEB_TOOLS = new Set(['web_search', 'web_fetch', 'http_request'])
@@ -46,6 +46,7 @@ interface Store {
   journal: JournalEntry[]
   chat: ChatMsg[]
   evolutions: Evolution[]
+  lessons: Lesson[]
   streams: Record<string, string>
   sys: { cpu: number; mem: number; tps: number; tokens: number; llm_busy: number; calls: number; uptime: number; live_agents: number }
   setConnected: (c: boolean) => void
@@ -60,7 +61,7 @@ export const useBrain = create<Store>((set, get) => ({
   connected: false,
   control: { state: 'idle', cycle: 0, max_cycles: 0, max_tokens: 0 },
   goals: {}, agents: {}, tools: [], customTools: [], toolCalls: {}, activity: {}, pulses: [], events: [], history: [],
-  metrics: EMPTY_METRICS, health: {}, selfmodel: null, journal: [], chat: [], evolutions: [], streams: {},
+  metrics: EMPTY_METRICS, health: {}, selfmodel: null, journal: [], chat: [], evolutions: [], lessons: [], streams: {},
   sys: { cpu: 0, mem: 0, tps: 0, tokens: 0, llm_busy: 0, calls: 0, uptime: 0, live_agents: 0 },
 
   setConnected: (connected) => set({ connected }),
@@ -75,7 +76,7 @@ export const useBrain = create<Store>((set, get) => ({
     set({
       control: s.control, goals, agents, tools: s.tools, customTools: s.custom_tools, metrics: s.metrics,
       health: s.health ?? {}, selfmodel: s.selfmodel, journal: s.journal, chat: s.chat.map((c: any) => ({ role: c.role, text: c.text, ts: c.ts })),
-      evolutions: s.evolutions, events: s.events,
+      evolutions: s.evolutions, events: s.events, lessons: s.lessons ?? [],
     })
   },
 
@@ -153,6 +154,12 @@ export const useBrain = create<Store>((set, get) => ({
         break
       }
       case 'selfmodel.update': patch.selfmodel = d.model as SelfModel; break
+      case 'lesson.learned': {
+        const rest = st.lessons.filter((l) => l.text !== d.text)
+        patch.lessons = [{ text: d.text, kind: d.kind, count: d.count, ts: e.ts }, ...rest].slice(0, 60)
+        touch('core')
+        break
+      }
       case 'journal.entry': patch.journal = [...st.journal, { id: e.seq, ts: e.ts, kind: d.kind, text: d.text }].slice(-60); break
       case 'evolution': patch.evolutions = [{ id: e.seq, ts: e.ts, kind: d.kind, target: d.target, status: d.status, reason: d.reason }, ...st.evolutions].slice(0, 40); touch('core'); break
       case 'memory.add': addPulse('core', 'memory', '#60a5fa'); touch('memory'); break

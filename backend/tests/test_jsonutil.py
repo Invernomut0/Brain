@@ -17,6 +17,12 @@ def test_json_embedded_in_prose_with_braces_in_strings():
     assert extract_json(text)["action"] == "x"
 
 
+def test_raw_newlines_inside_strings_are_accepted():
+    # Models often emit multi-line code with literal line breaks inside a JSON string.
+    text = '{"action": "write_file", "args": {"content": "def f():\n    return 1\n"}}'
+    assert extract_json(text)["args"]["content"] == "def f():\n    return 1\n"
+
+
 def test_unterminated_think_block_raises():
     with pytest.raises(ValueError):
         extract_json('<think>non finisco mai {"a": 1}')

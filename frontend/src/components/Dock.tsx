@@ -18,6 +18,7 @@ function summary(e: { type: string; data: Record<string, any> }): string {
     case 'tool.created': return `${d.name} (${d.passed ? 'test OK' : 'test falliti'})`
     case 'evolution': return `${d.kind} ${d.target}: ${d.status} — ${d.reason}`
     case 'introspection.probe': return `punteggio ${d.score}: ${d.answer}`
+    case 'lesson.learned': return `${d.new ? 'NUOVA' : `x${d.count}`} [${d.kind}] ${d.text}`
     case 'cycle.start': return `ciclo ${d.cycle}`
     default: return JSON.stringify(d).slice(0, 160)
   }
@@ -88,6 +89,20 @@ export function ToolsView() {
         ))}
         {builtin.map((t) => <div className="card" key={t.name}><b style={{ color: '#60a5fa' }}>{t.name}</b><small>{t.description}</small></div>)}
       </div>
+    </div>
+  )
+}
+
+export function LessonsView() {
+  const lessons = useBrain((s) => s.lessons)
+  return (
+    <div className="scroll">
+      {!lessons.length && <div className="empty">Quando un tool fallisce e poi viene corretto, o un obiettivo fallisce, Brain ne ricava una lezione e la usa nei prompt successivi.</div>}
+      {lessons.map((l) => (
+        <div className="entry" key={l.text}>
+          <small>{l.kind} · visto {l.count}× · {time(l.ts)}</small>{l.text}
+        </div>
+      ))}
     </div>
   )
 }

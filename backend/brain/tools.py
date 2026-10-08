@@ -65,7 +65,10 @@ class ToolRegistry:
     async def call(self, ctx: ToolContext, name: str, args: dict) -> Any:
         tool = self.builtin.get(name)
         if tool and tool.fn:
-            return await tool.fn(ctx, **args)
+            try:
+                return await tool.fn(ctx, **args)
+            except TypeError as e:  # wrong/missing arguments: tell the model the exact signature
+                raise TypeError(f"{e}. Firma corretta: {tool.signature()}") from e
         custom = self.custom().get(name)
         if not custom:
             raise KeyError(f"tool '{name}' not found")
@@ -86,10 +89,18 @@ def _clip(v: Any, n: int = 6000) -> Any:
 
 
 def _safe_path(ctx: ToolContext, rel: str) -> Path:
+    # In the sandbox the workspace is mounted at /workspace: accept those paths as relative ones.
+    rel = str(rel).strip()
+    for prefix in ("/workspace/", "workspace/", "./"):
+        if rel.startswith(prefix):
+            rel = rel[len(prefix):]
+    if rel in ("/workspace", "workspace"):
+        rel = "."
+    rel = rel.lstrip("/") or "."
     base = ctx.brain.settings.workspace_dir.resolve()
     p = (base / rel).resolve()
     if base != p and base not in p.parents:
-        raise PermissionError("path fuori dal workspace")
+        raise PermissionError("path fuori dal workspace: usa percorsi RELATIVI al workspace (es. 'notes/a.txt'; nella sandbox il workspace e' /workspace) senza '..'")
     return p
 
 
@@ -227,9 +238,9 @@ def _builtin_tools() -> list[Tool]:
         T("http_request", "richiesta HTTP generica (GET/POST/...) a qualunque URL/API", {"method": "str", "url": "str", "headers": "dict?", "body": "json?"}, http_request),
         T("python_exec", "esegue codice Python nella sandbox Podman (rete attiva, /workspace persistente)", {"code": "str"}, python_exec),
         T("shell_exec", "esegue un comando shell nella sandbox Podman", {"command": "str"}, shell_exec),
-        T("read_file", "legge un file del workspace", {"path": "str"}, read_file),
-        T("write_file", "scrive un file nel workspace", {"path": "str", "content": "str"}, write_file),
-        T("list_files", "elenca i file del workspace", {"path": "str='.'"}, list_files),
+        T("read_file", "legge un file del workspace (path relativo; = /workspace nella sandbox)", {"path": "str"}, read_file),
+        T("write_file", "scrive un file nel workspace (path relativo, es. 'tools/x.py'; = /workspace nella sandbox)", {"path": "str", "content": "str"}, write_file),
+        T("list_files", "elenca i file del workspace (path relativo)", {"path": "str='.'"}, list_files),
         T("remember", "salva un fatto nella memoria a lungo termine", {"text": "str", "tags": "list?", "importance": "0-1"}, remember),
         T("recall", "cerca nella memoria a lungo termine (semantica)", {"query": "str", "k": "int=5"}, recall),
         T("ask_user", "scrive a Lorenzo nella chat (non bloccante)", {"message": "str"}, ask_user),

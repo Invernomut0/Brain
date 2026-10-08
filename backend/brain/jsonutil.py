@@ -43,11 +43,15 @@ def _balanced(text: str) -> list[str]:
 
 
 def _loads(s: str) -> Any:
-    try:
-        return json.loads(s)
-    except json.JSONDecodeError:
-        s2 = re.sub(r",\s*([}\]])", r"\1", s)  # trailing commas
-        return json.loads(s2)
+    # Models often put raw newlines/tabs inside string values (multi-line code): accept them.
+    s2 = re.sub(r",\s*([}\]])", r"\1", s)  # trailing commas
+    last: Exception | None = None
+    for cand in (s, s2):
+        try:
+            return json.loads(cand, strict=False)
+        except json.JSONDecodeError as e:
+            last = e
+    raise last  # type: ignore[misc]
 
 
 def extract_json(text: str) -> dict:

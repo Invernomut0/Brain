@@ -171,8 +171,12 @@ class LLMClient:
                     kw["max_tokens"] = min(int(kw.get("max_tokens", 1500) * 1.6), 6000)
                     continue
                 msgs = msgs + [
-                    {"role": "assistant", "content": strip_thinking(res.text)[:1500]},
-                    {"role": "user", "content": "Risposta non valida: restituisci SOLO un oggetto JSON valido, senza testo extra."},
+                    {"role": "assistant", "content": strip_thinking(res.text)[:1500] or "(risposta vuota)"},
+                    {"role": "user", "content": (
+                        "Risposta non valida (nessun JSON parsabile). Rispondi di nuovo SOLO con UN oggetto JSON: nessun testo prima o dopo, "
+                        "nessun blocco ```. Dentro le stringhe usa \\n per andare a capo e \\\" per le virgolette (mai a capo letterali); "
+                        "il codice multilinea va in una stringa con \\n."
+                    )},
                 ]
         raise LLMError(f"model never produced valid JSON ({last_err})")
 

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { AgentList } from './components/AgentList'
-import { Chat, EventFeed, EvolutionView, Journal, ToolsView } from './components/Dock'
+import { Chat, EventFeed, EvolutionView, Journal, LessonsView, ToolsView } from './components/Dock'
 import { GoalTree } from './components/GoalTree'
 import { Header } from './components/Header'
 import { LiveThoughts } from './components/LiveThoughts'
@@ -12,7 +12,7 @@ import { useBrainSocket } from './hooks/useBrainSocket'
 import { ROLE_COLOR } from './store'
 
 const STAGE = { neural: 'Rete neurale 3D', goals: 'Albero obiettivi', tools: 'Agenti ↔ Tool' } as const
-const DOCK = { feed: 'Eventi live', chat: 'Chat', journal: 'Giornale', tools: 'Tool', evo: 'Evoluzione' } as const
+const DOCK = { feed: 'Eventi live', chat: 'Chat', journal: 'Giornale', lessons: 'Lezioni', tools: 'Tool', evo: 'Evoluzione' } as const
 
 export default function App() {
   useBrainSocket()
@@ -51,6 +51,7 @@ export default function App() {
           {dock === 'feed' && <EventFeed />}
           {dock === 'chat' && <Chat />}
           {dock === 'journal' && <Journal />}
+          {dock === 'lessons' && <LessonsView />}
           {dock === 'tools' && <ToolsView />}
           {dock === 'evo' && <EvolutionView />}
         </div>

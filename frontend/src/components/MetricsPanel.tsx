@@ -33,6 +33,7 @@ export function MetricsPanel() {
           <div className="kpi"><div className="v">{m.evolutions_applied}<span style={{ color: '#ffb020', fontSize: 13 }}> ↺{m.evolutions_rolled_back}</span></div><div className="l">evoluzioni / rollback</div></div>
           <div className="kpi"><div className="v">{m.memories}</div><div className="l">ricordi</div></div>
           <div className="kpi"><div className="v">{m.agents_spawned}</div><div className="l">agenti generati</div></div>
+          <div className="kpi"><div className="v">{m.lessons}</div><div className="l">lezioni apprese</div></div>
         </div>
         <div className="row"><span>Velocità LLM</span><b>{sys.tps.toFixed(1)} tok/s</b></div>
         <Sparkline data={hist.map((h) => h.tps)} color="#22d3ee" />

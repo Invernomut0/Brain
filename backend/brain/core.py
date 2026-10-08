@@ -12,6 +12,7 @@ from .control import Control
 from .db import Database
 from .evolution import Evolution
 from .goals import GoalStore
+from .lessons import Lessons
 from .llm import LLMClient
 from .memory import Memory
 from .orchestrator import Orchestrator
@@ -29,6 +30,7 @@ class Brain:
         self.llm = LLMClient(self.settings, self.bus)
         self.sandbox = Sandbox(self.settings)
         self.memory = Memory(self.db, self.llm, self.bus)
+        self.lessons = Lessons(self.db, self.bus)
         self.goals = GoalStore(self.db, self.bus)
         self.selfmodel = SelfModel(self.db, self.bus)
         self.evolution = Evolution(self.settings, self.db, self.bus, self.sandbox)
@@ -114,6 +116,7 @@ class Brain:
             "selfmodel": self.selfmodel.get(),
             "metrics": self.selfmodel.metrics(),
             "journal": self.memory.journal_recent(30),
+            "lessons": sorted(self.lessons.all(), key=lambda i: (i["count"], i["ts"]), reverse=True),
             "evolutions": self.evolution.history(20),
             "events": self.bus.recent(150),
             "health": self._health,

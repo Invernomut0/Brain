@@ -99,5 +99,6 @@ class SelfModel:
             "success_rate": round(success_rate, 3),
             "goals_done": done, "goals_failed": failed, "tools": tools,
             "journal": journal, "memories": memories, "agents_spawned": agents,
+            "lessons": len(self.db.kv_get("lessons", [])),
             "selfmodel_revision": revision, "evolutions_applied": evo_ok, "evolutions_rolled_back": evo_rb,
         }

@@ -116,6 +116,7 @@ class Orchestrator:
             f"\n\nMEMORIA RILEVANTE:\n" + "\n".join(m["text"][:200] for m in memories) +
             f"\n\nCHAT RECENTE CON LORENZO:\n{chat}\n\nTOOL: {', '.join(b.tools.all())}\n{hook_ctx}\n\n"
             f"Proponi da 1 a 3 nuovi obiettivi. Ruoli possibili per 'role': executor, researcher, engineer."
+            + (f"\n\nLEZIONI APPRESE (evita questi errori):\n{b.lessons.render(8)}" if b.lessons.count() else "")
         )
         try:
             out = await b.llm.chat_json(
@@ -161,8 +162,10 @@ class Orchestrator:
             await b.goals.set_status(goal["id"], "done", summary)
         elif goal["attempts"] < 1:
             await b.goals.requeue(goal["id"], str(verdict.get("feedback", ""))[:300])
+            await b.lessons.add(f"Tentativo fallito per '{goal['title'][:80]}': {verdict.get('feedback', '')}", "goal")
         else:
             await b.goals.set_status(goal["id"], "failed", f"{summary} | critic: {verdict.get('feedback', '')}"[:1500])
+            await b.lessons.add(f"Obiettivo fallito '{goal['title'][:80]}': {verdict.get('feedback', '')}", "goal")
         await b.memory.add(
             "episode", f"Obiettivo '{goal['title']}' -> {'riuscito' if ok else 'fallito'}: {summary[:400]}", [role], 0.6
         )
@@ -196,6 +199,10 @@ class Orchestrator:
             f"METRICHE: {json.dumps(b.selfmodel.metrics())}\n\nGIORNALE RECENTE:\n"
             + "\n".join(j["text"][:200] for j in b.memory.journal_recent(6))
             + f"\n\nCHAT:\n{self._recent_chat(6)}\n\nTOOL CREATI: {', '.join(b.tools.custom()) or 'nessuno'}"
+            + "\n\nERRORI RECENTI DEI TOOL (risolti=True se poi corretti):\n"
+            + "\n".join(f"- {f['tool']} {f['args']} -> {f['error'][:120]} (risolti={f['resolved']})" for f in b.lessons.recent_failures(10))
+            + f"\n\nLEZIONI GIA' APPRESE:\n{b.lessons.render(10) or '(nessuna)'}"
+            + '\n\nAggiungi al JSON il campo "lessons": ["regola generale e concreta per non ripetere gli errori sopra", ...] (max 3, nuove).'
         )
         try:
             out = await b.llm.chat_json(
@@ -215,6 +222,8 @@ class Orchestrator:
                 await b.selfmodel.update(clean)
         for ins in (out.get("insights") or [])[:3]:
             await b.memory.add("insight", str(ins)[:500], ["reflection"], 0.8)
+        for lesson in (out.get("lessons") or [])[:3]:
+            await b.lessons.add(str(lesson), "reflection")
         if out.get("improvement"):
             b.db.kv_set("pending_improvement", str(out["improvement"])[:500])
         await b.bus.publish("agent.end", "reflector", success=True, summary=str(out.get("journal", ""))[:300], steps=1)
