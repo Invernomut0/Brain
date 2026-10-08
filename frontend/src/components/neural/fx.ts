@@ -78,12 +78,12 @@ export function burst(p: THREE.Vector3, color: THREE.Color, n: number, speed: nu
   }
 }
 
-export interface Shock { pos: THREE.Vector3; color: THREE.Color; t0: number; size: number }
-export const SHOCK_POOL = 14
+export interface Shock { pos: THREE.Vector3; color: THREE.Color; t0: number; size: number; alpha: number }
+export const SHOCK_POOL = 24
 export const shocks: (Shock | null)[] = Array(SHOCK_POOL).fill(null)
 let shockHead = 0
-export function pushShock(p: THREE.Vector3, color: THREE.Color, size: number) {
-  shocks[shockHead++ % SHOCK_POOL] = { pos: p.clone(), color: color.clone(), t0: Date.now(), size }
+export function pushShock(p: THREE.Vector3, color: THREE.Color, size: number, alpha = 0.5) {
+  shocks[shockHead++ % SHOCK_POOL] = { pos: p.clone(), color: color.clone(), t0: Date.now(), size, alpha }
 }
 
 export const glowOf = (activity: Record<string, number>, id: string) => {

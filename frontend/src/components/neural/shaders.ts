@@ -96,3 +96,29 @@ void main() {
   vec3 col = uColor * (ring * 0.4 + tick * 0.2 + sweep * (0.1 + 0.2 * uBusy));
   gl_FragColor = vec4(col, length(col) * fade);
 }`
+
+export const auraVertex = /* glsl */ `
+attribute float aPhase; attribute float aRadius; attribute float aSpeed; attribute float aTilt;
+uniform float uTime; uniform float uLevel; uniform float uPx;
+varying float vA;
+void main() {
+  float a = aPhase + uTime * aSpeed * (0.5 + uLevel * 1.6);
+  vec3 p = vec3(cos(a) * aRadius, sin(a * 2.0 + aPhase) * 0.12, sin(a) * aRadius);
+  float c = cos(aTilt), s = sin(aTilt);
+  p = vec3(p.x, p.y * c - p.z * s, p.y * s + p.z * c);
+  vec4 mv = modelViewMatrix * vec4(p, 1.0);
+  gl_Position = projectionMatrix * mv;
+  float tw = 0.55 + 0.45 * sin(uTime * (5.0 + uLevel * 12.0) + aPhase * 30.0);
+  vA = tw * uLevel;
+  gl_PointSize = (1.2 + 2.4 * tw) * (0.6 + uLevel * 0.9) * uPx * (60.0 / -mv.z);
+}`
+
+export const auraFragment = /* glsl */ `
+uniform vec3 uColorA; uniform vec3 uColorB; uniform float uMix;
+varying float vA;
+void main() {
+  float d = length(gl_PointCoord - 0.5);
+  float soft = smoothstep(0.5, 0.0, d);
+  vec3 col = mix(uColorA, uColorB, uMix) * 1.8;
+  gl_FragColor = vec4(col, soft * soft * vA * 1.4);
+}`

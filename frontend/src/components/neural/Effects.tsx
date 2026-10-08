@@ -68,7 +68,7 @@ export function Shockwaves() {
       m.quaternion.copy(s.camera.quaternion)
       m.scale.setScalar(0.5 + age * sh.size * 2.2)
       const mat = m.material as THREE.MeshBasicMaterial
-      mat.opacity = (1 - age) ** 2 * 0.5
+      mat.opacity = (1 - age) ** 2 * sh.alpha
       mat.color.copy(sh.color).multiplyScalar(1.5)
     }
   })

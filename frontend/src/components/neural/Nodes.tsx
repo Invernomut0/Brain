@@ -4,8 +4,9 @@ import { Html } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import { roleColor, useBrain } from '../../store'
 import type { AgentView } from '../../types'
-import { basePos, flashOf, glowOf, livePos, particles } from './fx'
+import { basePos, flashOf, glowOf, livePos, particles, pushShock } from './fx'
 import { Halo, Orb, hdr } from './Glow'
+import { ThoughtAura } from './Aura'
 
 const energyOf = (id: string) => Math.min(2, glowOf(useBrain.getState().activity, id) + flashOf(id))
 const rnd = (k = 1) => (Math.random() - 0.5) * k
@@ -56,10 +57,11 @@ export function CoreNode() {
     const busy = st.sys.llm_busy > 0 ? 1 : 0
     const running = st.control.state === 'running'
     const aw = st.metrics.awareness_index
-    const e = energy()
+    const flowRate = Math.min(st.sys.tps / 30, 1)
+    const e = energy() + flowRate * 0.4
     const c = coreColor()
     tint.set(c)
-    if (wire.current) { wire.current.rotation.y += dt * (0.2 + busy * 0.9); wire.current.rotation.x += dt * 0.1; (wire.current.material as THREE.MeshBasicMaterial).color.copy(tint).multiplyScalar(1.5) }
+    if (wire.current) { wire.current.rotation.y += dt * (0.2 + busy * 0.9 + flowRate * 1.2); wire.current.rotation.x += dt * 0.1; (wire.current.material as THREE.MeshBasicMaterial).color.copy(tint).multiplyScalar(1.5) }
     if (orb.current) orb.current.scale.setScalar((0.95 + aw * 0.8) * (1 + Math.sin(t * (running ? 3 : 1)) * 0.04 + busy * 0.08 + energyOf('core') * 0.12))
     if (halo.current) {
       const sp = 9 + e * 2 + Math.sin(t * 2) * 0.4
@@ -73,7 +75,7 @@ export function CoreNode() {
       r.rotation.y += dt * (0.3 + i * 0.2)
       ;(r.material as THREE.MeshBasicMaterial).opacity = 0.35 + e * 0.3
     })
-    if (swirl.current) { swirl.current.rotation.y += dt * (0.25 + busy * 1.1); swirl.current.rotation.z += dt * 0.07 }
+    if (swirl.current) { swirl.current.rotation.y += dt * (0.25 + busy * 1.1 + flowRate * 1.5); swirl.current.rotation.z += dt * 0.07 }
     // thinking energy radiating out of the core
     emit(dt, busy ? 18 : running ? 3 : 0, () => {
       const u = rnd(2), th = Math.random() * 6.283, r = Math.sqrt(Math.max(0, 1 - u * u)), k = 2.2 + Math.random() * 1.6
@@ -124,14 +126,26 @@ export function AgentNode({ a, now }: { a: AgentView; now: number }) {
   const ringA = useRef<THREE.Mesh>(null)
   const ringB = useRef<THREE.Mesh>(null)
   const emit = useEmitter()
+  const flow = useEmitter()
+  const ripple = useEmitter()
   const col = useMemo(() => new THREE.Color(), [])
   const stream = useBrain((s) => s.streams[a.id])
+  const reasoningPhase = !!stream && stream.startsWith('(ragiona)')
   const base = a.state === 'failed' ? '#ff4d6d' : a.state === 'done' ? '#34f5a0' : roleColor(a.role)
+  const reasonCol = useMemo(() => new THREE.Color(base).lerp(new THREE.Color('#a5b4fc'), 0.45).multiplyScalar(1.6), [base])
+  const answerCol = useMemo(() => new THREE.Color('#7dffc4').multiplyScalar(1.9), [])
+
+  const tpsNow = () => useBrain.getState().streamTps[a.id] ?? 0
+  const reasoningNow = () => (useBrain.getState().streams[a.id] ?? '').startsWith('(ragiona)')
+  const stateNow = () => useBrain.getState().agents[a.id]?.state ?? a.state
+  const auraLevel = () => { const st = stateNow(); return st === 'thinking' ? 0.4 + Math.min(tpsNow() / 40, 1) * 0.6 : st === 'acting' ? 0.45 : 0 }
+  const auraMix = () => (stateNow() === 'acting' ? 0.5 : reasoningNow() ? 0 : 1)
 
   const energy = () => {
-    const st = useBrain.getState().agents[a.id]?.state ?? a.state
+    const st = stateNow()
     const t = Date.now() / 1000
-    const e = st === 'acting' ? 1.6 : st === 'thinking' ? 1.0 + Math.sin(t * 7) * 0.35 : st === 'queued' ? 0.55 + Math.sin(t * 3) * 0.15 : st === 'idle' ? 0.45 : 0.8
+    const tps = tpsNow()
+    const e = st === 'acting' ? 1.6 : st === 'thinking' ? 1.0 + Math.min(tps / 40, 1) * 0.5 + Math.sin(t * (4 + tps * 0.25)) * 0.3 : st === 'queued' ? 0.55 + Math.sin(t * 3) * 0.15 : st === 'idle' ? 0.45 : 0.8
     return e + flashOf(a.id) * 0.8
   }
 
@@ -163,6 +177,22 @@ export function AgentNode({ a, now }: { a: AgentView; now: number }) {
         -Math.sin(th) * k + rnd(0.6), 0.3 + Math.random() * 0.6, Math.cos(th) * k + rnd(0.6), col, 0.42, 1.1,
       )
     })
+
+    if (st === 'thinking') {
+      const tps = tpsNow()
+      const phaseCol = reasoningNow() ? reasonCol : answerCol
+      // Thoughts streaming into the Mind: density follows the token rate.
+      flow(dt, Math.min(Math.max(tps * 0.5, 3), 22), () => {
+        const core = livePos.get('core')
+        if (!core) return
+        const dx = core.x - live.x, dy = core.y - live.y, dz = core.z - live.z
+        const len = Math.hypot(dx, dy, dz) || 1
+        const speed = 3.2
+        particles.spawn(live.x, live.y, live.z, (dx / len) * speed + rnd(0.7), (dy / len) * speed + rnd(0.7), (dz / len) * speed + rnd(0.7), phaseCol, 0.34, (len / speed) * 0.9, 0.05)
+      })
+      // Brainwave ripples radiating from the agent, faster when it generates faster.
+      ripple(dt, 0.7 + tps / 25, () => pushShock(live, phaseCol, 0.9, 0.3))
+    }
   })
 
   const detail = a.state === 'acting' ? `▸ ${a.detail}` : a.state
@@ -170,6 +200,7 @@ export function AgentNode({ a, now }: { a: AgentView; now: number }) {
     <group ref={g} scale={0.001}>
       <Halo ref={halo} color={base} scale={4} opacity={0.4} />
       <Orb radius={0.55} color={base} energy={energy} plasma={0.5} />
+      <ThoughtAura color={base} level={auraLevel} mix={auraMix} />
       <mesh ref={ringA}><torusGeometry args={[0.95, 0.012, 8, 72]} /><meshBasicMaterial color={hdr(base, 2.2)} transparent opacity={0.75} blending={THREE.AdditiveBlending} toneMapped={false} /></mesh>
       <mesh ref={ringB} rotation={[1.2, 0.4, 0]}><torusGeometry args={[1.15, 0.01, 8, 72]} /><meshBasicMaterial color={hdr(base, 1.6)} transparent opacity={0.45} blending={THREE.AdditiveBlending} toneMapped={false} /></mesh>
       <Html center distanceFactor={15} position={[0, 1.7, 0]} style={{ pointerEvents: 'none' }} zIndexRange={[10, 0]}>
@@ -178,9 +209,12 @@ export function AgentNode({ a, now }: { a: AgentView; now: number }) {
           background: 'rgba(6,8,22,0.72)', border: `1px solid ${base}66`, boxShadow: `0 0 14px ${base}55`, backdropFilter: 'blur(4px)',
         }}>
           <div style={{ color: base, fontSize: 12, fontWeight: 700, letterSpacing: '0.06em' }}>{a.role}</div>
-          <div style={{ color: '#aab4e6', fontSize: 10, overflow: 'hidden', textOverflow: 'ellipsis' }}>{detail}</div>
-          {a.state === 'thinking' && stream && (
-            <div style={{ color: '#7f89b8', fontSize: 9, fontFamily: 'ui-monospace, monospace', overflow: 'hidden', textOverflow: 'ellipsis' }}>{stream.slice(-34)}</div>
+          <div style={{ color: '#aab4e6', fontSize: 10, overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.state === 'thinking' ? (reasoningPhase ? 'ragiona' : 'risponde') : detail}</div>
+          {a.state === 'thinking' && (
+            <>
+              <div className="eq" style={{ ['--c' as string]: reasoningPhase ? base : '#7dffc4' }}><i /><i /><i /><i /><i /><i /><i /></div>
+              {stream && <div style={{ color: '#7f89b8', fontSize: 9, fontFamily: 'ui-monospace, monospace', overflow: 'hidden', textOverflow: 'ellipsis' }}>{stream.replace('(ragiona) ', '').slice(-34)}</div>}
+            </>
           )}
         </div>
       </Html>
