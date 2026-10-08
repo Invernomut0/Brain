@@ -37,5 +37,5 @@ export interface Pulse { id: number; from: string; to: string; color: string; t0
 
 export interface Health {
   llm?: { ok: boolean; model?: string; error?: string }
-  sandbox?: { ok: boolean; image?: boolean; error?: string; running?: number }
+  sandbox?: { ok: boolean; image?: boolean; error?: string; running?: boolean; container?: string; active?: number }
 }

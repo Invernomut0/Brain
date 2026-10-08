@@ -38,4 +38,5 @@ async def brain(settings):
     b = Brain(settings)
     await b.evolution.seed()
     yield b
+    await b.sandbox.close()
     await b.llm.close()

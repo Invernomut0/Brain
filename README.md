@@ -28,8 +28,9 @@ frontend (React + three.js + d3)  <--WebSocket /ws + REST /api/v1-->  backend (F
 
 ### Safety model
 * **Core (`backend/`, `sandbox/`) is immutable for agents.** They can only write to `sandbox/workspace/` and `evolvable/`.
-* All agent-authored code (tools, hooks, tests, `python_exec`, `shell_exec`) runs in a throw-away **Podman** container
-  with network enabled, `--cap-drop ALL`, `no-new-privileges`, 1 GB RAM, 2 CPUs, 256 pids and a timeout. Your credentials and home
+* All agent-authored code (tools, hooks, tests, `python_exec`, `shell_exec`) runs in a long-lived **Podman** container
+  (`brain-sandbox-<id>`, visible in `podman ps` / Podman Desktop, via `podman exec` with a hard `timeout`)
+  with network enabled, `--cap-drop ALL`, `no-new-privileges`, 1 GB RAM, 2 CPUs, 512 pids. The kill switch removes it (it is recreated on next use). Your credentials and home
   directory are never mounted.
 * **Self-evolution** (`evolvable/`): prompts (`prompts/*.md`) and strategy hooks (`hooks/*.py`) are git-versioned.
   A hook change is committed only if its pytest suite passes in the sandbox; hooks failing 3 times at runtime are
@@ -68,7 +69,7 @@ Brain starts its autonomous loop by itself when the server boots (set `BRAIN_AUT
 | Dock | live event feed, chat with Brain, journal, tools, evolution history |
 
 ## Configuration (`.env`)
-See [.env.example](.env.example): LM Studio URL/model, budgets (`BRAIN_MAX_CYCLES`, `BRAIN_MAX_TOKENS`), reflection/evolution cadence, sandbox limits.
+See [.env.example](.env.example). The LM Studio model is chosen with `BRAIN_LLM_MODEL` (an id from `GET /v1/models`; if it is not loaded, Brain logs a warning and falls back to the first chat model). Also: embeddings model, budgets (`BRAIN_MAX_CYCLES`, `BRAIN_MAX_TOKENS`), reflection/evolution cadence, sandbox limits.
 
 ## API (v1)
 | Method | Path | Description |

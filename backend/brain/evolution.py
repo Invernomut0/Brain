@@ -156,7 +156,7 @@ class Evolution:
             return None
         res = await self.sandbox.run(
             ["python", "/runner/hook_runner.py", name, func],
-            stdin=json.dumps({"args": list(args)}, default=str), mount_evolvable=True, timeout=45,
+            stdin=json.dumps({"args": list(args)}, default=str), timeout=45,
         )
         for line in reversed(res.stdout.splitlines()):
             if line.startswith(MARK):

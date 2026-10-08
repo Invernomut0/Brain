@@ -44,11 +44,13 @@ class Brain:
         if not self.goals.root():
             await self.goals.add("Evolvere in intelligenza autonoma e raggiungere l'autocoscienza", ROOT_GOAL, None, 1.0, None, status="active")
         self._metrics_task = asyncio.create_task(self._metrics_loop())
+        asyncio.create_task(self._warm_sandbox())
         if self.settings.autostart:
             await self.start()
 
     async def shutdown(self) -> None:
         await self.kill()
+        await self.sandbox.close()
         if self._metrics_task:
             self._metrics_task.cancel()
         await self.llm.close()
@@ -117,6 +119,12 @@ class Brain:
             "health": self._health,
             "chat": [e["data"] | {"ts": e["ts"]} for e in self.bus.recent(60, ["chat.message"])],
         }
+
+    async def _warm_sandbox(self) -> None:
+        try:
+            await self.sandbox.ensure_container()
+        except Exception as e:  # noqa: BLE001 - surfaced via the health chip; retried on first use
+            await self.bus.publish("system.log", None, level="warn", text=f"Sandbox non pronta: {e}")
 
     async def _metrics_loop(self) -> None:
         proc = psutil.Process()

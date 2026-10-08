@@ -24,7 +24,7 @@ export function Header() {
       <span className="logo">BRAIN</span>
       <span className="chip"><i className={`dot ${st === 'running' ? 'run' : st === 'killed' ? 'bad' : st === 'paused' ? '' : 'ok'}`} />{st.toUpperCase()} · ciclo {control.cycle}</span>
       <span className="chip"><i className={`dot ${health.llm?.ok ? 'ok' : 'bad'}`} />LM Studio{health.llm?.model ? ` · ${health.llm.model}` : ''}</span>
-      <span className="chip"><i className={`dot ${health.sandbox?.ok ? 'ok' : 'bad'}`} />Podman{health.sandbox?.ok && !health.sandbox.image ? ' (immagine da costruire)' : ''}</span>
+      <span className="chip"><i className={`dot ${health.sandbox?.ok ? 'ok' : 'bad'}`} />Podman{health.sandbox?.ok && !health.sandbox.image ? ' (immagine da costruire)' : health.sandbox?.ok ? ` · ${health.sandbox.running ? health.sandbox.container : 'container in avvio al primo uso'}` : ''}</span>
       <span className="chip"><i className={`dot ${connected ? 'ok' : 'bad'}`} />{connected ? 'live' : 'offline'}</span>
       <span className="chip">{sys.tps.toFixed(1)} tok/s · {fmt(sys.tokens)} tok</span>
       <span className="spacer" />

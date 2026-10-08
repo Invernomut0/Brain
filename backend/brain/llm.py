@@ -60,6 +60,10 @@ class LLMClient:
             self.model = self.s.llm_model
         elif chat:
             self.model = chat[0]
+            await self.bus.publish(
+                "system.log", None, level="warn",
+                text=f"Modello '{self.s.llm_model}' (BRAIN_LLM_MODEL) non caricato in LM Studio: uso '{self.model}'",
+            )
         else:
             raise LLMError("LM Studio exposes no chat model")
         return self.model
