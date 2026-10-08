@@ -52,6 +52,7 @@ interface Store {
   sys: { cpu: number; mem: number; tps: number; tokens: number; llm_busy: number; llm_queued: number; calls: number; uptime: number; live_agents: number }
   setConnected: (c: boolean) => void
   applySnapshot: (s: any) => void
+  resetLocal: () => void
   applyEvent: (e: BrainEvent) => void
 }
 
@@ -66,6 +67,11 @@ export const useBrain = create<Store>((set, get) => ({
   sys: { cpu: 0, mem: 0, tps: 0, tokens: 0, llm_busy: 0, llm_queued: 0, calls: 0, uptime: 0, live_agents: 0 },
 
   setConnected: (connected) => set({ connected }),
+
+  resetLocal: () => set({
+    goals: {}, agents: {}, tools: [], customTools: [], toolCalls: {}, activity: {}, pulses: [], events: [], history: [],
+    metrics: EMPTY_METRICS, selfmodel: null, journal: [], chat: [], evolutions: [], lessons: [], streams: {}, streamTps: {},
+  }),
 
   applySnapshot: (s) => {
     const goals: Record<number, Goal> = {}

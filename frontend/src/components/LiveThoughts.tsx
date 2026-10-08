@@ -4,6 +4,17 @@ import type { AgentView } from '../types'
 
 const REASONING_PREFIX = '(ragiona) '
 const HIDE_KEY = 'brain.thoughts.hidden'
+const SIZE_KEY = 'brain.thoughts.size'
+
+interface Size { w: number; h: number }
+const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
+
+function loadSize(): Size | null {
+  try {
+    const v = JSON.parse(localStorage.getItem(SIZE_KEY) ?? 'null')
+    return v && v.w > 0 && v.h > 0 ? v : null
+  } catch { return null }
+}
 
 function ThoughtCard({ a }: { a: AgentView }) {
   const raw = useBrain((s) => s.streams[a.id]) ?? ''
@@ -36,17 +47,49 @@ function ThoughtCard({ a }: { a: AgentView }) {
   )
 }
 
-/** Compact live view of working agents; cards expand on click and the whole stack can be hidden. */
+/** Live view of working agents: resizable (drag the top-right corner, double-click to reset) and hideable. */
 export function LiveThoughts() {
   const agents = useBrain((s) => s.agents)
   const [hidden, setHidden] = useState(() => localStorage.getItem(HIDE_KEY) === '1')
+  const [size, setSize] = useState<Size | null>(loadSize)
+  const sizeRef = useRef<Size | null>(size)
+  const stack = useRef<HTMLDivElement>(null)
+  const drag = useRef<{ x: number; y: number; w: number; h: number } | null>(null)
+
   const toggle = () => { localStorage.setItem(HIDE_KEY, hidden ? '0' : '1'); setHidden(!hidden) }
+  const onDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    const r = stack.current?.getBoundingClientRect()
+    if (!r) return
+    drag.current = { x: e.clientX, y: e.clientY, w: r.width, h: r.height }
+    e.currentTarget.setPointerCapture(e.pointerId)
+    e.preventDefault()
+  }
+  const onMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = drag.current
+    const parent = stack.current?.parentElement?.getBoundingClientRect()
+    if (!d || !parent) return
+    // The panel is anchored bottom-left, so dragging the top-right corner up/right grows it.
+    const next = { w: clamp(d.w + (e.clientX - d.x), 260, parent.width - 24), h: clamp(d.h + (d.y - e.clientY), 90, parent.height - 70) }
+    sizeRef.current = next
+    setSize(next)
+  }
+  const onUp = () => {
+    drag.current = null
+    if (sizeRef.current) localStorage.setItem(SIZE_KEY, JSON.stringify(sizeRef.current))
+  }
+  const resetSize = () => { sizeRef.current = null; setSize(null); localStorage.removeItem(SIZE_KEY) }
+
   const active = Object.values(agents)
     .filter((a) => !a.endedAt && (a.state === 'thinking' || a.state === 'acting' || a.state === 'queued'))
     .sort((a, b) => b.bornAt - a.bornAt)
   if (!active.length) return null
+  const sized = size && !hidden
   return (
-    <div className="live-stack">
+    <div ref={stack} className={`live-stack ${sized ? 'sized' : ''}`} style={sized ? { width: size.w, height: size.h } : undefined}>
+      {!hidden && (
+        <div className="live-grip" title="Trascina per ridimensionare, doppio clic per ripristinare"
+          onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onDoubleClick={resetSize} />
+      )}
       <button className="live-toggle" onClick={toggle}>{hidden ? `\u25b8 ${active.length} agenti al lavoro` : '\u25be nascondi pensieri'}</button>
       {!hidden && active.slice(0, 3).map((a) => <ThoughtCard key={a.id} a={a} />)}
     </div>

@@ -12,4 +12,5 @@ export const api = {
   control: (action: 'start' | 'pause' | 'resume' | 'stop' | 'kill') => post(`/control/${action}`),
   budget: (b: { max_cycles?: number; max_tokens?: number }) => post('/budget', b),
   chat: (text: string) => post('/chat', { text }),
+  reset: () => post('/reset', { confirm: 'RESET' }),
 }

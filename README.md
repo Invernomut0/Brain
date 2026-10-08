@@ -36,7 +36,7 @@ frontend (React + three.js + d3)  <--WebSocket /ws + REST /api/v1-->  backend (F
   A hook change is committed only if its pytest suite passes in the sandbox; hooks failing 3 times at runtime are
   reverted; a prompt whose success rate drops >15 points vs. its predecessor is rolled back automatically.
 * Internet access is unrestricted by design (GET/POST/any API) and every call is logged as an event.
-* **Controls**: pause / resume / stop (graceful) / **kill** (cancels all tasks and kills every container) and cycle/token budgets.
+* **Controls**: pause / resume / stop (graceful) / **kill** (cancels all tasks and kills every container), cycle/token budgets, and **⟲ Reset** (type `RESET` to confirm) which returns Brain to a brand-new, empty installation. The live thoughts panel can be resized (drag its top-right corner, double-click to restore) and hidden.
 
 ## Requirements
 * macOS/Linux, Python 3.12+, Node 20+
@@ -82,6 +82,7 @@ See [.env.example](.env.example). The LM Studio model is chosen with `BRAIN_LLM_
 | GET | `/api/v1/state` | full snapshot |
 | POST | `/api/v1/control/{start,pause,resume,stop,kill}` | run-state control |
 | POST | `/api/v1/budget` | `{max_cycles, max_tokens}` |
+| POST | `/api/v1/reset` | `{confirm: "RESET"}` - factory reset: wipes database, sandbox workspace/tools, prompts and hooks (back to defaults) |
 | POST | `/api/v1/chat` | `{text}` — talk to Brain (may create a goal) |
 | GET | `/api/v1/memory?q=` | semantic memory search |
 | GET | `/api/v1/events?limit=` | recent events |

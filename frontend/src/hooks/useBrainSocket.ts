@@ -16,7 +16,11 @@ export function useBrainSocket() {
       ws.onmessage = (m) => {
         const msg = JSON.parse(m.data)
         if (msg.type === 'snapshot') useBrain.getState().applySnapshot(msg.data)
-        else useBrain.getState().applyEvent(msg)
+        else if (msg.type === 'system.reset') {
+          // Everything server-side was wiped: drop local state and reload a fresh snapshot.
+          useBrain.getState().resetLocal()
+          fetch('/api/v1/state').then((r) => r.json()).then((s) => useBrain.getState().applySnapshot(s))
+        } else useBrain.getState().applyEvent(msg)
       }
       ws.onclose = () => {
         useBrain.getState().setConnected(false)

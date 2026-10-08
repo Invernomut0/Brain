@@ -31,6 +31,9 @@ class SelfModel:
     def get(self) -> dict:
         return self.db.kv_get("self_model", DEFAULT_MODEL)
 
+    def reset(self) -> None:
+        self.db.kv_set("self_model", DEFAULT_MODEL)
+
     async def update(self, patch: dict) -> dict:
         m = self.get()
         for k, v in patch.items():

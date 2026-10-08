@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import shutil
 import time
 
 import psutil
@@ -43,13 +44,42 @@ class Brain:
         self._health: dict = {}
 
     async def startup(self) -> None:
+        await self._bootstrap()
+        self._metrics_task = asyncio.create_task(self._metrics_loop())
+        asyncio.create_task(self._warm_sandbox())
+        if self.settings.autostart:
+            await self.start()
+
+    async def _bootstrap(self) -> None:
         await self.evolution.seed()
         # Goals left 'active' by a crash/kill would never be picked up again.
         self.db.execute("UPDATE goals SET status='pending' WHERE status='active' AND parent_id IS NOT NULL")
         if not self.goals.root():
             await self.goals.add("Evolvere in intelligenza autonoma e raggiungere l'autocoscienza", ROOT_GOAL, None, 1.0, None, status="active")
-        self._metrics_task = asyncio.create_task(self._metrics_loop())
-        asyncio.create_task(self._warm_sandbox())
+
+    async def reset(self) -> None:
+        """Back to a brand-new installation: database, sandbox workspace (incl. tools), prompts, hooks, counters."""
+        await self.kill()
+        o = self.orchestrator
+        for t in list(o._bg):
+            t.cancel()
+        o.questions.clear()
+        o.last_question = None
+        self.db.wipe()
+        ws = self.settings.workspace_dir
+        for child in ws.iterdir():
+            shutil.rmtree(child) if child.is_dir() else child.unlink()
+        (ws / "tools").mkdir(parents=True, exist_ok=True)
+        await self.sandbox.close()  # fresh container: pip installs and processes are gone too
+        await self.evolution.reset()
+        self.selfmodel.reset()
+        self.llm.total_tokens = self.llm.calls = 0
+        self.llm.last_tps = 0.0
+        self.llm.streams.clear()
+        self.control.cycle = 0
+        await self.control.set_state("idle")
+        await self._bootstrap()
+        await self.bus.publish("system.reset", None)
         if self.settings.autostart:
             await self.start()
 

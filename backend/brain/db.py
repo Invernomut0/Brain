@@ -64,6 +64,20 @@ class Database:
         return rows[0] if rows else None
 
     # --- key/value helpers -------------------------------------------------
+    def wipe(self) -> None:
+        """Delete every row of every table (schema is kept) and compact the file."""
+        with self._lock:
+            tables = [r[0] for r in self._conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")]
+            for t in tables:
+                self._conn.execute(f'DELETE FROM "{t}"')
+            try:
+                self._conn.execute("DELETE FROM sqlite_sequence")
+            except sqlite3.OperationalError:
+                pass
+            self._conn.commit()
+            self._conn.execute("VACUUM")
+
+    # --- key/value helpers -------------------------------------------------
     def kv_get(self, key: str, default: Any = None) -> Any:
         row = self.one("SELECT value FROM kv WHERE key=?", (key,))
         return json.loads(row["value"]) if row else default

@@ -20,6 +20,10 @@ class ChatIn(BaseModel):
     text: str
 
 
+class ResetIn(BaseModel):
+    confirm: str
+
+
 class BudgetIn(BaseModel):
     max_cycles: int | None = None
     max_tokens: int | None = None
@@ -34,7 +38,7 @@ def create_app(brain: Brain | None = None) -> FastAPI:
         yield
         await brain.shutdown()
 
-    app = FastAPI(title="Brain", version="0.1.10", lifespan=lifespan)
+    app = FastAPI(title="Brain", version="0.1.11", lifespan=lifespan)
     app.state.brain = brain
     app.add_middleware(
         CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -51,6 +55,13 @@ def create_app(brain: Brain | None = None) -> FastAPI:
         if not fn:
             raise HTTPException(404, "unknown action")
         await fn()
+        return brain.control.snapshot()
+
+    @app.post("/api/v1/reset")
+    async def reset(body: ResetIn):
+        if body.confirm != "RESET":
+            raise HTTPException(400, 'confirmation required: send {"confirm": "RESET"}')
+        await brain.reset()
         return brain.control.snapshot()
 
     @app.post("/api/v1/budget")

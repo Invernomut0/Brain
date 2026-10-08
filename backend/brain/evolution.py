@@ -67,6 +67,16 @@ class Evolution:
                     )
 
     # ---- prompts -------------------------------------------------------------
+    async def reset(self) -> None:
+        """Restore the factory prompts/hooks/tests (committed to git, so history is preserved)."""
+        for sub in ("prompts", "hooks", "tests"):
+            for f in (self.s.evolvable_dir / sub).glob("*"):
+                if f.is_file():
+                    f.unlink()
+        self.hook_failures.clear()
+        await self.seed()
+
+    # ---- prompts -------------------------------------------------------------
     def prompt(self, role: str) -> str:
         p = self.s.evolvable_dir / "prompts" / f"{role}.md"
         if p.exists():

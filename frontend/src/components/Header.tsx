@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { api } from '../api'
 import { useBrain } from '../store'
+import { ResetDialog } from './ResetDialog'
 
 const fmt = (n: number) => (n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'k' : String(n))
 
@@ -8,6 +9,7 @@ export function Header() {
   const { control, connected, health, sys } = useBrain()
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  const [resetOpen, setResetOpen] = useState(false)
   const st = control.state
 
   const act = async (a: 'start' | 'pause' | 'resume' | 'stop' | 'kill') => {
@@ -35,6 +37,8 @@ export function Header() {
       {st === 'paused' && <button className="btn go" disabled={busy} onClick={() => act('resume')}>▶ Riprendi</button>}
       <button className="btn" disabled={busy || !active} onClick={() => act('stop')}>■ Stop</button>
       <button className="btn danger" disabled={busy || st === 'idle'} onClick={() => act('kill')}>☠ Kill</button>
+      <button className="btn" disabled={busy || !connected} onClick={() => setResetOpen(true)} title="Riporta Brain a un'installazione nuova">⟲ Reset</button>
+      {resetOpen && <ResetDialog onClose={() => setResetOpen(false)} />}
       {err && <div className="toast" onClick={() => setErr(null)}>{err}</div>}
     </header>
   )
