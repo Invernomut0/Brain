@@ -3,6 +3,7 @@ import { AgentList } from './components/AgentList'
 import { Chat, EventFeed, EvolutionView, Journal, LessonsView, ToolsView } from './components/Dock'
 import { GoalTree } from './components/GoalTree'
 import { Header } from './components/Header'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { LiveThoughts } from './components/LiveThoughts'
 import { MetricsPanel } from './components/MetricsPanel'
 import { Neural3D } from './components/Neural3D'
@@ -34,9 +35,11 @@ export default function App() {
           {Object.entries(ROLE_COLOR).slice(0, 6).map(([r, c]) => <span key={r}><i style={{ background: c }} />{r}</span>)}
         </div>
         <div className="view">
-          {stage === 'neural' && <Neural3D />}
-          {stage === 'goals' && <GoalTree />}
-          {stage === 'tools' && <ToolGalaxy />}
+          <ErrorBoundary key={stage} name={STAGE[stage]}>
+            {stage === 'neural' && <Neural3D />}
+            {stage === 'goals' && <GoalTree />}
+            {stage === 'tools' && <ToolGalaxy />}
+          </ErrorBoundary>
         </div>
         {stage === 'neural' && <LiveThoughts />}
       </main>
@@ -48,12 +51,14 @@ export default function App() {
           {(Object.keys(DOCK) as (keyof typeof DOCK)[]).map((k) => <div key={k} className={`tab ${dock === k ? 'on' : ''}`} onClick={() => setDock(k)}>{DOCK[k]}</div>)}
         </div>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', paddingTop: 6 }}>
-          {dock === 'feed' && <EventFeed />}
-          {dock === 'chat' && <Chat />}
-          {dock === 'journal' && <Journal />}
-          {dock === 'lessons' && <LessonsView />}
-          {dock === 'tools' && <ToolsView />}
-          {dock === 'evo' && <EvolutionView />}
+          <ErrorBoundary key={dock} name={DOCK[dock]}>
+            {dock === 'feed' && <EventFeed />}
+            {dock === 'chat' && <Chat />}
+            {dock === 'journal' && <Journal />}
+            {dock === 'lessons' && <LessonsView />}
+            {dock === 'tools' && <ToolsView />}
+            {dock === 'evo' && <EvolutionView />}
+          </ErrorBoundary>
         </div>
       </section>
     </div>

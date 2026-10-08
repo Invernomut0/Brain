@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api'
 import { useBrain } from '../store'
 
@@ -79,15 +79,36 @@ export function Journal() {
 }
 
 export function ToolsView() {
-  const tools = useBrain((s) => s.customTools)
-  const builtin = useBrain((s) => s.tools.filter((t) => !t.custom))
+  const custom = useBrain((s) => s.customTools)
+  const all = useBrain((s) => s.tools)
+  const calls = useBrain((s) => s.toolCalls)
+  const { builtin, usage } = useMemo(() => {
+    const usage: Record<string, number> = {}
+    for (const [k, n] of Object.entries(calls)) { const t = k.split('|')[1]; usage[t] = (usage[t] ?? 0) + n }
+    const builtin = all.filter((t) => !t.custom).sort((a, b) => (usage[b.name] ?? 0) - (usage[a.name] ?? 0) || a.name.localeCompare(b.name))
+    return { builtin, usage }
+  }, [all, calls])
+  const head = { margin: '4px 0 8px', fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#7f89b8' } as const
   return (
     <div className="scroll">
+      <div style={head}>Tool creati da Brain ({custom.length})</div>
+      {!custom.length && <div className="empty" style={{ padding: '4px 0 12px' }}>Nessun tool creato ancora: Brain li costruisce, li collauda in sandbox e li registra qui.</div>}
       <div className="cols">
-        {tools.map((t) => (
-          <div className="card" key={t.name}><b>{t.name}</b> <small style={{ display: 'inline' }}>[{t.status}] chiamate {t.calls} · errori {t.failures}</small><small>{t.description}</small></div>
+        {custom.map((t) => (
+          <div className="card" key={t.name}>
+            <b>{t.name}</b> <small style={{ display: 'inline' }}>[{t.status}] chiamate {t.calls} · errori {t.failures}</small>
+            <small>{t.description}</small>
+          </div>
         ))}
-        {builtin.map((t) => <div className="card" key={t.name}><b style={{ color: '#60a5fa' }}>{t.name}</b><small>{t.description}</small></div>)}
+      </div>
+      <div style={{ ...head, marginTop: 14 }}>Tool integrati ({builtin.length})</div>
+      <div className="cols">
+        {builtin.map((t) => (
+          <div className="card" key={t.name}>
+            <b style={{ color: '#60a5fa' }}>{t.name}</b> <small style={{ display: 'inline' }}>usi {usage[t.name] ?? 0}</small>
+            <small>{t.description}</small>
+          </div>
+        ))}
       </div>
     </div>
   )
