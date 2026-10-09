@@ -73,8 +73,8 @@ class Brain:
     async def set_main_goal(self, text: str, archive_pending: bool = True) -> dict:
         """Change what Brain is ultimately trying to achieve; the planner picks it up on its next run."""
         text = text.strip()
-        if not 10 <= len(text) <= 2000:
-            raise ValueError("main goal must be 10-2000 characters")
+        if len(text) < 10:
+            raise ValueError("main goal must be at least 10 characters")
         root = await self.goals.set_main(text, archive_pending)
         await self._realign_selfmodel(text)
         self.memory.journal_add("goal", f"{self.owner} changed the main goal: {text[:300]}")

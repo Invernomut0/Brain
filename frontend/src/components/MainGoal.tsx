@@ -13,7 +13,7 @@ function MainGoalDialog({ initial, onClose }: { initial: string; onClose: () => 
   const [archive, setArchive] = useState(true)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
-  const valid = text.trim().length >= 10 && text.length <= 2000
+  const valid = text.trim().length >= 10
 
   const save = async () => {
     setBusy(true); setErr(null)
@@ -26,7 +26,7 @@ function MainGoalDialog({ initial, onClose }: { initial: string; onClose: () => 
         <h2>Main goal</h2>
         <p>What Brain is trying to achieve. The planner follows it from the next planning cycle.</p>
         <textarea autoFocus rows={8} value={text} disabled={busy} onChange={(e) => setText(e.target.value)} />
-        <div className="goal-count">{text.trim().length}/2000</div>
+        <div className="goal-count">{text.trim().length} characters (minimum 10)</div>
         <label className="check">
           <input type="checkbox" checked={archive} disabled={busy} onChange={(e) => setArchive(e.target.checked)} />
           Cancel the queued goals planned for the old goal (recommended)

@@ -45,6 +45,14 @@ async def test_too_short_goal_is_rejected(brain):
         await brain.set_main_goal("too", True)
 
 
+async def test_main_goal_has_no_upper_length_limit(brain):
+    await brain._bootstrap()
+    long_goal = "Build and operate a small online business, step by step. " * 150  # about 8.5k characters
+    await brain.set_main_goal(long_goal, archive_pending=False)
+    assert brain.goals.root()["description"] == long_goal.strip()
+    assert brain.orchestrator.main_goal() == long_goal.strip()
+
+
 async def test_the_planner_prompt_points_to_the_editable_goal(brain):
     text = brain.evolution.prompt("planner")
     assert "ROOT GOAL chosen by the owner" in text
