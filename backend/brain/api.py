@@ -80,7 +80,7 @@ def create_app(brain: Brain | None = None) -> FastAPI:
         yield
         await brain.shutdown()
 
-    app = FastAPI(title="Brain", version="0.1.34", lifespan=lifespan)
+    app = FastAPI(title="Brain", version="0.1.35", lifespan=lifespan)
     app.state.brain = brain
     app.add_middleware(
         CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -271,7 +271,8 @@ def create_app(brain: Brain | None = None) -> FastAPI:
         async def spa(path: str):
             if path.startswith("api/"):
                 raise HTTPException(404, "unknown API endpoint (is the server running an older version? restart it)")
-            f = DIST / path
-            return FileResponse(f if f.is_file() else DIST / "index.html")
+            f = (DIST / path).resolve()
+            inside = f.is_relative_to(DIST.resolve())  # never serve files outside the built dashboard
+            return FileResponse(f if inside and f.is_file() else DIST / "index.html")
 
     return app

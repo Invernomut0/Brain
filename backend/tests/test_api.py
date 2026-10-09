@@ -47,3 +47,15 @@ def test_websocket_streams_snapshot_then_events(client):
             if "chat.message" in seen and "llm.end" in seen:
                 break
         assert "chat.message" in seen
+
+
+def test_dashboard_serves_avatars_but_never_files_outside_dist(client):
+    from brain.api import DIST
+
+    if not (DIST / "avatars").exists():
+        pytest.skip("dashboard not built")
+    r = client.get("/avatars/engineer.png")
+    assert r.status_code == 200 and r.headers["content-type"] == "image/png"
+    # %2e%2e escapes the dist folder: the repo .env.example must not be served
+    leak = client.get("/%2e%2e/%2e%2e/.env.example")
+    assert "BRAIN_" not in leak.text

@@ -86,6 +86,9 @@ Agents keep a technical id (`critic-4`: used by events, containers and goals) bu
 * **Style**: the *Names* selector in the Agents panel chooses `off` (plain ids), `all` (each role gets styles that fit it) or one of 13 styles (`classic`, `royal`, `corporate`, `cyber`, `fantasy`, `action`, `nonsense`, `memes`, `heroic`, `pirate`, `scifi`, `cozy`, `office`; word lists in `backend/brain/names_data.py`). It applies to agents created from then on.
 * **Choose or roll**: hover an agent and use ✎ to type a name, or ⟳ to roll a new generated one (the id never changes).
 
+### Agent avatars
+Each role has an animated avatar (`assets/<Role>.png`: sprite sheets with 3 frames per state; planner, executor, researcher, engineer, critic, reflector, evolver; the service agents `chat`, `status` and `embedding` use the *Reasoner*). The live thoughts panel shows it in the top-right corner of every **active** card (collapsed queued/waiting cards have none). The sheet row follows what the agent is doing: working with a tool, or reasoning (tokens streaming); a card reopened while the agent is queued or waiting shows those rows too. Sources are downscaled and re-aligned into `frontend/public/avatars/` by `frontend/scripts/build_avatars.py` (`pip install pillow`, then `python frontend/scripts/build_avatars.py`); `prefers-reduced-motion` freezes them on the first frame.
+
 ### Projects (save / load / new)
 The header chip **▣ project name** opens the *Projects* dialog. A project is a full snapshot of Brain, stored in `projects/<id>/` (git-ignored, relocatable with `BRAIN_PROJECTS_DIR`):
 

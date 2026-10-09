@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { roleColor, useBrain } from '../store'
+import { Avatar } from './Avatar'
 import type { AgentView } from '../types'
 
 const REASONING_PREFIX = '(ragiona) '
@@ -36,6 +37,7 @@ function ThoughtCard({ a }: { a: AgentView }) {
   const idle = queued || waiting
   return (
     <div className={`live ${open ? 'open' : ''} ${idle && !open ? 'collapsed' : ''}`} style={{ ['--c' as string]: color }}>
+      {!(idle && !open) && <Avatar id={a.id} role={a.role} state={a.state} color={color} size={48} />}
       <div className="live-head" onClick={() => setOpen(!open)} title="Click to expand/collapse">
         <i className="live-dot" />
         <b>{name ?? a.role}</b>
