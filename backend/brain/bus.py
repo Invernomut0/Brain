@@ -5,7 +5,7 @@ import asyncio
 import json
 import time
 from dataclasses import dataclass, asdict
-from typing import Any
+from typing import Any, Callable
 
 from .db import Database
 
@@ -30,6 +30,7 @@ class EventBus:
         self.db = db
         self._subs: set[asyncio.Queue] = set()
         self._ephemeral_seq = 0
+        self.namer: Callable[[str, str | None], str | None] | None = None  # gives a spawning agent its display name
 
     def subscribe(self) -> asyncio.Queue:
         q: asyncio.Queue = asyncio.Queue(maxsize=2000)
@@ -41,6 +42,10 @@ class EventBus:
 
     async def publish(self, type: str, agent: str | None = None, **data: Any) -> Event:
         ts = time.time()
+        if type == "agent.spawn" and agent and self.namer:
+            name = self.namer(agent, data.get("role"))
+            if name:
+                data["name"] = name
         if type in EPHEMERAL:
             self._ephemeral_seq -= 1
             seq = self._ephemeral_seq

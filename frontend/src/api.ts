@@ -30,5 +30,7 @@ export const api = {
   loadProject: (id: string, save_current: boolean) => post<ProjectMeta>(`/projects/${encodeURIComponent(id)}/load`, { save_current }),
   newProject: (name: string, main_goal: string, save_current: boolean, owner: string) => post<ProjectMeta>('/projects/new', { name, main_goal: main_goal.trim() || null, save_current, owner: owner.trim() || null }),
   setOwner: (name: string) => put<{ name: string }>('/owner', { name }),
+  setNaming: (style: string) => put<{ style: string; styles: string[] }>('/naming', { style }),
+  renameAgent: (id: string, name: string | null) => put<{ agent_id: string; name: string }>(`/agents/${encodeURIComponent(id)}/name`, { name }),
   deleteProject: (id: string) => call<{ deleted: string }>('DELETE', `/projects/${encodeURIComponent(id)}`),
 }

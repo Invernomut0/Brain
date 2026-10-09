@@ -12,6 +12,7 @@ from pydantic import BaseModel
 
 from .config import ROOT
 from .core import Brain
+from .names import AgentNameError
 from .projects import ProjectError, ProjectNotFound
 
 DIST = ROOT / "frontend" / "dist"
@@ -54,6 +55,14 @@ class OwnerIn(BaseModel):
     name: str
 
 
+class NamingIn(BaseModel):
+    style: str
+
+
+class AgentNameIn(BaseModel):
+    name: str | None = None  # None = roll a new generated name
+
+
 def create_app(brain: Brain | None = None) -> FastAPI:
     brain = brain or Brain()
 
@@ -71,7 +80,7 @@ def create_app(brain: Brain | None = None) -> FastAPI:
         yield
         await brain.shutdown()
 
-    app = FastAPI(title="Brain", version="0.1.24", lifespan=lifespan)
+    app = FastAPI(title="Brain", version="0.1.25", lifespan=lifespan)
     app.state.brain = brain
     app.add_middleware(
         CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -102,6 +111,31 @@ def create_app(brain: Brain | None = None) -> FastAPI:
         except ValueError as e:
             raise HTTPException(422, str(e)) from e
         return {"title": root["title"], "text": root["description"], "cancelled": root["cancelled"]}
+
+    @app.get("/api/v1/naming")
+    async def get_naming():
+        return {"style": brain.names.style(), "styles": brain.names.styles()}
+
+    @app.put("/api/v1/naming")
+    async def put_naming(body: NamingIn):
+        try:
+            style = brain.names.set_style(body.style)
+        except AgentNameError as e:
+            raise HTTPException(422, str(e)) from e
+        await brain.bus.publish("naming.changed", None, style=style)
+        return {"style": style, "styles": brain.names.styles()}
+
+    @app.put("/api/v1/agents/{agent_id}/name")
+    async def put_agent_name(agent_id: str, body: AgentNameIn):
+        known = brain.names.get(agent_id) or brain.db.one("SELECT 1 FROM events WHERE agent=? LIMIT 1", (agent_id,))
+        if not known:
+            raise HTTPException(404, "unknown agent")
+        try:
+            name = brain.names.rename(agent_id, body.name) if body.name else brain.names.reroll(agent_id)
+        except AgentNameError as e:
+            raise HTTPException(422, str(e)) from e
+        await brain.bus.publish("agent.renamed", agent_id, name=name)
+        return {"agent_id": agent_id, "name": name}
 
     @app.get("/api/v1/owner")
     async def get_owner():

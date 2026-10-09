@@ -17,6 +17,7 @@ from .goals import GoalStore
 from .lessons import Lessons
 from .llm import LLMClient, LLMError
 from .memory import Memory
+from .names import AgentNames
 from .orchestrator import Orchestrator
 from .projects import Projects
 from .sandbox import Sandbox
@@ -34,6 +35,8 @@ class Brain:
         self.settings.ensure_dirs()
         self.db = Database(self.settings.data_dir / "brain.db")
         self.bus = EventBus(self.db)
+        self.names = AgentNames(self.db)
+        self.bus.namer = self.names.assign
         self.llm = LLMClient(self.settings, self.bus)
         self.sandbox = Sandbox(self.settings)
         self.memory = Memory(self.db, self.llm, self.bus)
@@ -250,6 +253,8 @@ class Brain:
         return {
             "project": self.projects.current(),
             "owner": self.owner_name,
+            "names": self.names.all(),
+            "naming": {"style": self.names.style(), "styles": self.names.styles()},
             "control": self.control.snapshot(),
             "goals": self.goals.all(),
             "agents": self._agents_snapshot(),

@@ -54,6 +54,8 @@ interface Store {
   graphMode: '2d' | '3d'  // shared by the goal tree and the wiki graph
   project: { name: string; saved: boolean }  // active project (see the Projects dialog)
   owner: string  // who Brain works for; empty until asked
+  names: Record<string, string>  // agent id -> display name (absent when naming is off)
+  naming: { style: string; styles: string[] }
   loaded: boolean  // first snapshot received
   setGraphMode: (m: '2d' | '3d') => void
   sys: { cpu: number; mem: number; tps: number; tokens: number; llm_busy: number; llm_queued: number; calls: number; uptime: number; live_agents: number }
@@ -74,6 +76,8 @@ export const useBrain = create<Store>((set, get) => ({
   graphMode: location.hash.endsWith(':3d') || localStorage.getItem('brain.graphmode') === '3d' ? '3d' : '2d',
   project: { name: 'Untitled project', saved: false },
   owner: '',
+  names: {},
+  naming: { style: 'all', styles: ['off', 'all'] },
   loaded: false,
   setGraphMode: (graphMode) => { localStorage.setItem('brain.graphmode', graphMode); set({ graphMode }) },
   sys: { cpu: 0, mem: 0, tps: 0, tokens: 0, llm_busy: 0, llm_queued: 0, calls: 0, uptime: 0, live_agents: 0 },
@@ -108,6 +112,7 @@ export const useBrain = create<Store>((set, get) => ({
       evolutions: s.evolutions, events: s.events, lessons: s.lessons ?? [], streams, streamTps,
       project: s.project ? { name: s.project.name, saved: s.project.saved } : { name: 'Untitled project', saved: false },
       owner: s.owner ?? '', loaded: true,
+      names: s.names ?? {}, naming: s.naming ?? { style: 'all', styles: ['off', 'all'] },
     })
   },
 
@@ -139,6 +144,7 @@ export const useBrain = create<Store>((set, get) => ({
       case 'goal.update': patch.goals = { ...st.goals, [d.id]: d as Goal }; break
       case 'agent.spawn': {
         const id = e.agent as string
+        if (d.name) patch.names = { ...st.names, [id]: d.name }
         patch.agents = { ...st.agents, [id]: {
           id, role: d.role, parent: d.parent, goal_id: d.goal_id, task: d.task ?? '', state: 'idle', detail: '', thought: '', action: '',
           steps: 0, bornAt: now, endedAt: null, success: null, summary: '',
@@ -197,6 +203,8 @@ export const useBrain = create<Store>((set, get) => ({
       case 'wiki.update': patch.wikiRev = st.wikiRev + 1; break
       case 'project.changed': patch.project = { name: d.name, saved: true }; break
       case 'owner.changed': patch.owner = d.name; break
+      case 'agent.renamed': patch.names = { ...st.names, [e.agent as string]: d.name }; break
+      case 'naming.changed': patch.naming = { ...st.naming, style: d.style }; break
       case 'llm.start': if (e.agent) touch('core'); break
     }
     if (e.type !== 'llm.end' && e.type !== 'llm.start') patch.events = [...st.events, e].slice(-MAX_EVENTS)

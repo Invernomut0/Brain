@@ -7,6 +7,7 @@ export function ToolGalaxy() {
   const agents = useBrain((s) => s.agents)
   const tools = useBrain((s) => s.tools)
   const calls = useBrain((s) => s.toolCalls)
+  const names = useBrain((s) => s.names)
   const [selected, setSelected] = useState<string | null>(null)
 
   const { nodes, links } = useMemo(() => {
@@ -16,7 +17,7 @@ export function ToolGalaxy() {
         id: `t:${t.name}`, label: t.name, color: t.custom ? '#ffb020' : '#60a5fa', size: t.custom ? 9 : 7, hub: true, tip: `${t.name}\n${t.description}`,
       })),
       ...Object.values(agents).map((a): GNode => ({
-        id: `a:${a.id}`, label: `${a.role} ${a.id.split('-')[1] ?? ''}`.trim(), color: roleColor(a.role), size: 8, hub: true,
+        id: `a:${a.id}`, label: names[a.id] ?? `${a.role} ${a.id.split('-')[1] ?? ''}`.trim(), color: roleColor(a.role), size: 8, hub: true,
         tip: `${a.role} (${a.state})\n${a.task}`,
       })),
     ]
@@ -25,7 +26,7 @@ export function ToolGalaxy() {
       .map(([k, weight]) => { const [a, t] = k.split('|'); return { source: `a:${a}`, target: `t:${t}`, weight, color: '#8b7bff' } })
       .filter((l) => ids.has(l.source) && ids.has(l.target))
     return { nodes, links }
-  }, [agents, tools, calls])
+  }, [agents, tools, calls, names])
 
   return (
     <GraphCanvas nodes={nodes} links={links} selected={selected} onSelect={setSelected} fitKey={String(nodes.length)}

@@ -19,6 +19,7 @@ function loadSize(): Size | null {
 function ThoughtCard({ a }: { a: AgentView }) {
   const raw = useBrain((s) => s.streams[a.id]) ?? ''
   const tps = useBrain((s) => s.streamTps[a.id]) ?? 0
+  const name = useBrain((s) => s.names[a.id])
   const [open, setOpen] = useState(false)
   const reasoning = raw.startsWith(REASONING_PREFIX)
   const text = reasoning ? raw.slice(REASONING_PREFIX.length) : raw
@@ -33,8 +34,8 @@ function ThoughtCard({ a }: { a: AgentView }) {
     <div className={`live ${open ? 'open' : ''}`} style={{ ['--c' as string]: color }}>
       <div className="live-head" onClick={() => setOpen(!open)} title="Click to expand/collapse">
         <i className="live-dot" />
-        <b>{a.role}</b>
-        <span className="live-id">{a.id}</span>
+        <b>{name ?? a.role}</b>
+        <span className="live-id">{name ? a.role : a.id}</span>
         <span className="live-mode">{thinking ? (reasoning ? 'reasoning' : 'answer') : queued ? 'queued' : a.state === 'acting' ? `tool \u00b7 ${a.detail}` : a.state}</span>
         {thinking && tps > 0 && <span className="live-tps">{tps.toFixed(1)} tok/s</span>}
         <span className="live-chev">{open ? '\u25be' : '\u25b8'}</span>

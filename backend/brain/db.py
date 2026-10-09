@@ -38,6 +38,8 @@ CREATE TABLE IF NOT EXISTS evolutions(
 CREATE TABLE IF NOT EXISTS wiki_pages(
   id TEXT PRIMARY KEY, title TEXT, type TEXT, summary TEXT, body TEXT, updated REAL, hash TEXT,
   managed TEXT, links TEXT, embedding TEXT);
+CREATE TABLE IF NOT EXISTS agent_names(
+  agent_id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE COLLATE NOCASE, role TEXT, style TEXT, created REAL);
 """
 
 

@@ -130,6 +130,7 @@ export function AgentNode({ a, now }: { a: AgentView; now: number }) {
   const ripple = useEmitter()
   const col = useMemo(() => new THREE.Color(), [])
   const stream = useBrain((s) => s.streams[a.id])
+  const name = useBrain((s) => s.names[a.id])
   const reasoningPhase = !!stream && stream.startsWith('(ragiona)')
   const base = a.state === 'failed' ? '#ff4d6d' : a.state === 'done' ? '#34f5a0' : roleColor(a.role)
   const reasonCol = useMemo(() => new THREE.Color(base).lerp(new THREE.Color('#a5b4fc'), 0.45).multiplyScalar(1.6), [base])
@@ -208,7 +209,7 @@ export function AgentNode({ a, now }: { a: AgentView; now: number }) {
           minWidth: 96, maxWidth: 190, padding: '4px 9px', borderRadius: 8, textAlign: 'center', whiteSpace: 'nowrap',
           background: 'rgba(6,8,22,0.72)', border: `1px solid ${base}66`, boxShadow: `0 0 14px ${base}55`, backdropFilter: 'blur(4px)',
         }}>
-          <div style={{ color: base, fontSize: 12, fontWeight: 700, letterSpacing: '0.06em' }}>{a.role}</div>
+          <div style={{ color: base, fontSize: 12, fontWeight: 700, letterSpacing: '0.06em' }}>{name ?? a.role}</div>
           <div style={{ color: '#aab4e6', fontSize: 10, overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.state === 'thinking' ? (reasoningPhase ? 'ragiona' : 'risponde') : detail}</div>
           {a.state === 'thinking' && (
             <>

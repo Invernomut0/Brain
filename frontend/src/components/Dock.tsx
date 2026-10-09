@@ -26,13 +26,14 @@ function summary(e: { type: string; data: Record<string, any> }): string {
 
 export function EventFeed() {
   const events = useBrain((s) => s.events)
+  const names = useBrain((s) => s.names)
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => { const el = ref.current; if (el) el.scrollTop = el.scrollHeight }, [events.length])
   return (
     <div className="scroll feed" ref={ref}>
       {events.map((e, i) => (
         <div className="ev" key={`${e.seq}-${i}`}>
-          <span className="t">{time(e.ts)}</span><span className="ty">{e.type}</span><span className="ag">{e.agent ?? ''}</span><span className="tx" title={summary(e)}>{summary(e)}</span>
+          <span className="t">{time(e.ts)}</span><span className="ty">{e.type}</span><span className="ag" title={e.agent ?? ''}>{e.agent ? names[e.agent] ?? e.agent : ''}</span><span className="tx" title={summary(e)}>{summary(e)}</span>
         </div>
       ))}
     </div>
