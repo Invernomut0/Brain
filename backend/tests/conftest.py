@@ -29,6 +29,7 @@ def settings(tmp_path_factory) -> Settings:
     s.workspace_dir = root / "workspace"
     s.repo_dir = root / "repo"
     s.evolvable_dir = root / "repo" / "evolvable"
+    s.projects_dir = root / "projects"
     yield s
     shutil.rmtree(root, ignore_errors=True)
 

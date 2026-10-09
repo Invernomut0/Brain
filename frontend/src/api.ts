@@ -11,6 +11,13 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
 const post = <T = unknown>(path: string, body?: unknown) => call<T>('POST', path, body)
 const put = <T = unknown>(path: string, body?: unknown) => call<T>('PUT', path, body)
 
+export interface ProjectMeta {
+  id: string; name: string; saved_at: number; app_version: string; cycle: number; main_goal: string
+  goals: { done: number; failed: number; total: number }
+  memories: number; lessons: number; tools: number; wiki_pages: number; size_bytes: number; current?: boolean
+}
+export interface ProjectInfo { name: string; id: string; saved: boolean; saved_at: number | null }
+
 export const api = {
   get: <T = unknown>(path: string) => call<T>('GET', path),
   post,
@@ -19,4 +26,9 @@ export const api = {
   chat: (text: string) => post('/chat', { text }),
   reset: () => post('/reset', { confirm: 'RESET' }),
   setMainGoal: (text: string, archive_pending: boolean) => put<{ cancelled: number }>('/main-goal', { text, archive_pending }),
+  projects: () => call<{ current: ProjectInfo; items: ProjectMeta[] }>('GET', '/projects'),
+  saveProject: (name?: string) => post<ProjectMeta>('/projects/save', { name: name || null }),
+  loadProject: (id: string, save_current: boolean) => post<ProjectMeta>(`/projects/${encodeURIComponent(id)}/load`, { save_current }),
+  newProject: (name: string, main_goal: string, save_current: boolean) => post<ProjectMeta>('/projects/new', { name, main_goal: main_goal.trim() || null, save_current }),
+  deleteProject: (id: string) => call<{ deleted: string }>('DELETE', `/projects/${encodeURIComponent(id)}`),
 }

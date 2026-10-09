@@ -66,6 +66,27 @@ class Database:
         rows = self.query(sql, params)
         return rows[0] if rows else None
 
+    # --- snapshots ---------------------------------------------------------
+    def backup_to(self, path: Path) -> None:
+        """Consistent copy of the live database (SQLite online backup)."""
+        with self._lock:
+            dst = sqlite3.connect(str(path))
+            try:
+                self._conn.backup(dst)
+            finally:
+                dst.close()
+
+    def restore_from(self, path: Path) -> None:
+        """Replace the live database content with a snapshot, keeping the open connection."""
+        with self._lock:
+            src = sqlite3.connect(str(path))
+            try:
+                src.backup(self._conn)
+            finally:
+                src.close()
+            self._conn.executescript(SCHEMA)  # snapshots from older versions may lack newer tables
+            self._conn.commit()
+
     # --- key/value helpers -------------------------------------------------
     def wipe(self) -> None:
         """Delete every row of every table (schema is kept) and compact the file."""

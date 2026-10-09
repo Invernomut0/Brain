@@ -18,6 +18,7 @@ from .lessons import Lessons
 from .llm import LLMClient
 from .memory import Memory
 from .orchestrator import Orchestrator
+from .projects import Projects
 from .sandbox import Sandbox
 from .selfmodel import SelfModel
 from .status import StatusReport
@@ -43,6 +44,7 @@ class Brain:
         self.orchestrator = Orchestrator(self)
         self.status = StatusReport(self)
         self.wiki = Wiki(self)
+        self.projects = Projects(self)
         self.started = time.time()
         self._metrics_task: asyncio.Task | None = None
         self._health: dict = {}
@@ -61,7 +63,7 @@ class Brain:
         # Goals left 'active' by a crash/kill would never be picked up again.
         self.db.execute("UPDATE goals SET status='pending' WHERE status='active' AND parent_id IS NOT NULL")
         if not self.goals.root():
-            await self.goals.add("Evolvere in intelligenza autonoma e raggiungere l'autocoscienza", ROOT_GOAL, None, 1.0, None, status="active")
+            await self.goals.add("Evolve into an autonomous intelligence and reach self-awareness", ROOT_GOAL, None, 1.0, None, status="active")
 
     async def set_main_goal(self, text: str, archive_pending: bool = True) -> dict:
         """Change what Brain is ultimately trying to achieve; the planner picks it up on its next run."""
@@ -77,12 +79,7 @@ class Brain:
 
     async def reset(self) -> None:
         """Back to a brand-new installation: database, sandbox workspace (incl. tools), prompts, hooks, counters."""
-        await self.kill()
-        o = self.orchestrator
-        for t in list(o._bg):
-            t.cancel()
-        o.questions.clear()
-        o.last_question = None
+        await self._halt_everything()
         self.db.wipe()
         ws = self.settings.workspace_dir
         for child in ws.iterdir():
@@ -91,16 +88,29 @@ class Brain:
         await self.sandbox.close()  # fresh container: pip installs and processes are gone too
         await self.evolution.reset()
         self.selfmodel.reset()
-        self.llm.total_tokens = self.llm.calls = 0
-        self.llm.last_tps = 0.0
-        self.llm.streams.clear()
-        self.control.cycle = 0
-        await self.control.set_state("idle")
+        await self._fresh_runtime(0)
         await self._bootstrap()
         await self.wiki.reset()
         await self.bus.publish("system.reset", None)
         if self.settings.autostart:
             await self.start()
+
+    async def _halt_everything(self) -> None:
+        """Kill agents/containers and drop in-flight background work and pending questions."""
+        await self.kill()
+        o = self.orchestrator
+        for t in list(o._bg):
+            t.cancel()
+        o.questions.clear()
+        o.last_question = None
+
+    async def _fresh_runtime(self, cycle: int) -> None:
+        """Zero the in-memory counters and go back to idle at the given cycle."""
+        self.llm.total_tokens = self.llm.calls = 0
+        self.llm.last_tps = 0.0
+        self.llm.streams.clear()
+        self.control.cycle = cycle
+        await self.control.set_state("idle")
 
     async def shutdown(self) -> None:
         await self.kill()
@@ -184,6 +194,7 @@ class Brain:
 
     def snapshot(self) -> dict:
         return {
+            "project": self.projects.current(),
             "control": self.control.snapshot(),
             "goals": self.goals.all(),
             "agents": self._agents_snapshot(),

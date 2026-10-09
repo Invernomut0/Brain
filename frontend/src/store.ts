@@ -52,6 +52,7 @@ interface Store {
   thoughtsInset: number  // left px covered by the live-thoughts panel (lets 2D views avoid it)
   wikiRev: number  // bumped on every wiki.update event so the wiki view refetches
   graphMode: '2d' | '3d'  // shared by the goal tree and the wiki graph
+  project: { name: string; saved: boolean }  // active project (see the Projects dialog)
   setGraphMode: (m: '2d' | '3d') => void
   sys: { cpu: number; mem: number; tps: number; tokens: number; llm_busy: number; llm_queued: number; calls: number; uptime: number; live_agents: number }
   setConnected: (c: boolean) => void
@@ -69,6 +70,7 @@ export const useBrain = create<Store>((set, get) => ({
   goals: {}, agents: {}, tools: [], customTools: [], toolCalls: {}, activity: {}, pulses: [], events: [], history: [],
   metrics: EMPTY_METRICS, health: {}, selfmodel: null, journal: [], chat: [], evolutions: [], lessons: [], streams: {}, streamTps: {}, thoughtsInset: 0, wikiRev: 0,
   graphMode: location.hash.endsWith(':3d') || localStorage.getItem('brain.graphmode') === '3d' ? '3d' : '2d',
+  project: { name: 'Untitled project', saved: false },
   setGraphMode: (graphMode) => { localStorage.setItem('brain.graphmode', graphMode); set({ graphMode }) },
   sys: { cpu: 0, mem: 0, tps: 0, tokens: 0, llm_busy: 0, llm_queued: 0, calls: 0, uptime: 0, live_agents: 0 },
 
@@ -100,6 +102,7 @@ export const useBrain = create<Store>((set, get) => ({
       control: s.control, goals, agents, tools: s.tools, customTools: s.custom_tools, metrics: s.metrics,
       health: s.health ?? {}, selfmodel: s.selfmodel, journal: s.journal, chat: s.chat.map((c: any) => ({ role: c.role, text: c.text, ts: c.ts })),
       evolutions: s.evolutions, events: s.events, lessons: s.lessons ?? [], streams, streamTps,
+      project: s.project ? { name: s.project.name, saved: s.project.saved } : { name: 'Untitled project', saved: false },
     })
   },
 
@@ -187,6 +190,7 @@ export const useBrain = create<Store>((set, get) => ({
       case 'evolution': patch.evolutions = [{ id: e.seq, ts: e.ts, kind: d.kind, target: d.target, status: d.status, reason: d.reason }, ...st.evolutions].slice(0, 40); touch('core'); break
       case 'memory.add': addPulse('core', 'memory', '#60a5fa'); touch('memory'); break
       case 'wiki.update': patch.wikiRev = st.wikiRev + 1; break
+      case 'project.changed': patch.project = { name: d.name, saved: true }; break
       case 'llm.start': if (e.agent) touch('core'); break
     }
     if (e.type !== 'llm.end' && e.type !== 'llm.start') patch.events = [...st.events, e].slice(-MAX_EVENTS)

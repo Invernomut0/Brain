@@ -12,6 +12,7 @@ from pydantic import BaseModel
 
 from .config import ROOT
 from .core import Brain
+from .projects import ProjectError, ProjectNotFound
 
 DIST = ROOT / "frontend" / "dist"
 
@@ -34,8 +35,30 @@ class BudgetIn(BaseModel):
     max_tokens: int | None = None
 
 
+class ProjectSaveIn(BaseModel):
+    name: str | None = None
+
+
+class ProjectLoadIn(BaseModel):
+    save_current: bool = True
+
+
+class ProjectNewIn(BaseModel):
+    name: str
+    main_goal: str | None = None
+    save_current: bool = True
+
+
 def create_app(brain: Brain | None = None) -> FastAPI:
     brain = brain or Brain()
+
+    async def _project_call(coro):
+        try:
+            return await coro
+        except ProjectNotFound as e:
+            raise HTTPException(404, "project not found") from e
+        except (ProjectError, ValueError) as e:
+            raise HTTPException(422, str(e)) from e
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -43,7 +66,7 @@ def create_app(brain: Brain | None = None) -> FastAPI:
         yield
         await brain.shutdown()
 
-    app = FastAPI(title="Brain", version="0.1.21", lifespan=lifespan)
+    app = FastAPI(title="Brain", version="0.1.22", lifespan=lifespan)
     app.state.brain = brain
     app.add_middleware(
         CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -148,6 +171,30 @@ def create_app(brain: Brain | None = None) -> FastAPI:
         """Vectorise pages and memories with BRAIN_EMBED_MODEL, letting LM Studio load it if needed."""
         res = await brain.wiki.embed_pending(force=True)
         return {**res, "stats": await brain.wiki.stats()}
+
+    @app.get("/api/v1/projects")
+    async def projects_list():
+        return {"current": brain.projects.current(), "items": brain.projects.list()}
+
+    @app.post("/api/v1/projects/save")
+    async def projects_save(body: ProjectSaveIn):
+        return await _project_call(brain.projects.save(body.name))
+
+    @app.post("/api/v1/projects/new")
+    async def projects_new(body: ProjectNewIn):
+        return await _project_call(brain.projects.new(body.name, body.main_goal, body.save_current))
+
+    @app.post("/api/v1/projects/{pid}/load")
+    async def projects_load(pid: str, body: ProjectLoadIn | None = None):
+        return await _project_call(brain.projects.load(pid, body.save_current if body else True))
+
+    @app.delete("/api/v1/projects/{pid}")
+    async def projects_delete(pid: str):
+        try:
+            brain.projects.delete(pid)
+        except ProjectNotFound as e:
+            raise HTTPException(404, "project not found") from e
+        return {"deleted": pid}
 
     @app.get("/api/v1/events")
     async def events(limit: int = 200):

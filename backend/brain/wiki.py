@@ -210,16 +210,21 @@ class Wiki:
         await asyncio.gather(*tasks, return_exceptions=True)
         self._task = self._ingest_task = None
 
-    async def reset(self) -> None:
+    async def reload(self, wipe: bool = False) -> None:
+        """Re-read the wiki from disk (after its folder was replaced) or, with wipe=True, start it from scratch."""
         if self._ingest_task:
             self._ingest_task.cancel()
             await asyncio.gather(self._ingest_task, return_exceptions=True)
             self._ingest_task = None
-        shutil.rmtree(self.dir, ignore_errors=True)
+        if wipe:
+            shutil.rmtree(self.dir, ignore_errors=True)
         self._vec.clear()
         self._dirty = False
         self.embed_error = ""
         await self.init()
+
+    async def reset(self) -> None:
+        await self.reload(wipe=True)
 
     # ------------------------------------------------------------------ files
     def _path(self, pid: str) -> Path:

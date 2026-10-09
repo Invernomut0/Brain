@@ -59,6 +59,7 @@ class Settings:
     evolvable_dir: Path = field(default_factory=lambda: ROOT / "evolvable")
     repo_dir: Path = field(default_factory=lambda: ROOT)
     sandbox_src: Path = field(default_factory=lambda: ROOT / "sandbox")
+    projects_dir: Path = field(default_factory=lambda: Path(_env("BRAIN_PROJECTS_DIR", str(ROOT / "projects"))))
 
     @property
     def wiki_dir(self) -> Path:

@@ -74,11 +74,27 @@ Brain keeps a persistent, interlinked **markdown wiki** of what it knows about i
 | Wiki | `status.md`, `lessons.md`, `evolution.md`, `self-model.md`, `episodes/goal-N.md`, `tools/<name>.md` (regenerated from the database, `managed: auto`) and `concepts/ entities/ insights/ decisions/ phases/ notes/` (written by the librarian, `managed: llm`) |
 | Schema | `SCHEMA.md` (conventions), `index.md` (catalogue by category), `log.md` (append-only, `## [date] kind \| title`), `lint.md` (health check) |
 
-* **Ingest**: while Brain runs, every ~8 new memories/journal entries (or 30 min) the librarian prompt folds them into existing or new pages, flags contradictions (`⚠ Contraddizione:`) and *phases* of the journey, and logs it. Database-derived pages are rebuilt a few seconds after goals, tools, lessons or evolutions change.
+* **Ingest**: while Brain runs, every ~8 new memories/journal entries (or 30 min) the librarian prompt folds them into existing or new pages, flags contradictions (`⚠ Contradiction:`) and *phases* of the journey, and logs it. Database-derived pages are rebuilt a few seconds after goals, tools, lessons or evolutions change.
 * **Query**: agents have `wiki_search`, `wiki_read`, `wiki_note` (useful answers are filed back as notes) and get the most relevant pages injected when they start a task; the chat reply also sees them.
 * **Lint**: broken links (= pages to create, fed back to the librarian), orphans, stale pages, open contradictions, pages without vectors.
 * **Vectors**: pages (and memories) are embedded with `BRAIN_EMBED_MODEL` for semantic search and for the **semantic map**. LM Studio normally keeps one JIT model loaded: loading the embedding model can evict the chat model. With `BRAIN_EMBEDDINGS=auto` vectors are only computed/queried while the embedding model is already loaded, so for full semantic search load **both** models in LM Studio (and disable auto-evict). The **◈ Vectors** button forces the computation once (LM Studio loads the model, then Brain reloads the chat model).
 * **Wiki tab** (main stage): map of the pages (2D canvas or 3D, switch bottom-right; the choice is shared with the goal tree and the tools graph). *Links* = force layout by links; *Semantic map* = pages positioned by the PCA of their vectors (similar meaning = close; 3 components in 3D). Click a node to read the page (links are clickable), legend chips hide types, search highlights matches; **Index / Log / Health / Schema** open the special files and **↻ Update wiki** syncs and ingests on demand.
+
+### Projects (save / load / new)
+The header chip **▣ project name** opens the *Projects* dialog. A project is a full snapshot of Brain, stored in `projects/<id>/` (git-ignored, relocatable with `BRAIN_PROJECTS_DIR`):
+
+| File | Content |
+|---|---|
+| `brain.db` | consistent SQLite copy: goals, memories, journal, lessons, self-model, events, prompt versions, tools, counters |
+| `wiki/` | the markdown wiki |
+| `workspace/` | the sandbox workspace: agent-made tools and files |
+| `evolvable/` | evolved prompts, hooks and tests |
+| `meta.json` | name, date, cycle, main goal, counts, size |
+
+* **Save**: snapshots the live state under a name (same name = same project, overwritten atomically). It can be done while Brain runs.
+* **Load**: stops everything, optionally saves the current project first, then replaces database, wiki, workspace and prompts/hooks with the snapshot (restored prompts are committed to the evolvable git history). Brain stays stopped (cycle restored): press ▶ Start to continue from where it was.
+* **New project**: optionally saves the current one, then starts from the factory state under a new name, with an optional main goal.
+* **Delete** removes a snapshot only. Names must be unique for new projects; ids are validated slugs (no path traversal).
 
 **LM Studio robustness**: if the model gets unloaded mid-request Brain waits for it to reload (a 1-token request triggers LM Studio's JIT loader) and retries. Embeddings are only used when their model is already loaded (`BRAIN_EMBEDDINGS=auto`): requesting an unloaded embedding model makes LM Studio swap models and evict the chat model.
 
@@ -104,6 +120,11 @@ See [.env.example](.env.example). The LM Studio model is chosen with `BRAIN_LLM_
 | POST | `/api/v1/budget` | `{max_cycles, max_tokens}` |
 | POST | `/api/v1/reset` | `{confirm: "RESET"}` - factory reset: wipes database, sandbox workspace/tools, prompts and hooks (back to defaults) |
 | POST | `/api/v1/chat` | `{text}` — talk to Brain (may create a goal) |
+| GET | `/api/v1/projects` | `{current, items}`: active project and saved snapshots (newest first, with stats) |
+| POST | `/api/v1/projects/save` | `{name?}` snapshot the live state (default: current project name) |
+| POST | `/api/v1/projects/new` | `{name, main_goal?, save_current=true}` start a fresh project (422 if the name exists) |
+| POST | `/api/v1/projects/{id}/load` | `{save_current=true}` restore a saved project (404 if unknown) |
+| DELETE | `/api/v1/projects/{id}` | delete a saved project |
 | GET | `/api/v1/memory?q=` | semantic memory search |
 | GET | `/api/v1/memories?q=&kind=&limit=&offset=` | browse memories (newest first) or search them by relevance; returns `items`, per-`kinds` counts and `total` |
 | GET | `/api/v1/status` | measurable facts (goals, tools, memories, awareness index...) plus the last stored status report and a `stale` flag |
@@ -125,11 +146,12 @@ cd backend && ../.venv/bin/python -m pytest -q
 
 ## Layout
 ```
-backend/brain/   core: config, db, bus, llm, sandbox, tools, agents, orchestrator, evolution, selfmodel, memory, status, wiki, api
+backend/brain/   core: config, db, bus, llm, sandbox, tools, agents, orchestrator, evolution, selfmodel, memory, status, wiki, projects, api
 backend/tests/   pytest suite
 frontend/src/    dashboard (store, hooks, components)
 sandbox/         Containerfile + in-container runners (tool_runner.py, hook_runner.py); workspace/ is the agents' persistent disk
 evolvable/       git-versioned prompts, hooks, tests that Brain may rewrite
+projects/        saved project snapshots (git-ignored)
 ```
 
 ## FAQ

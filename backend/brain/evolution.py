@@ -40,6 +40,10 @@ class Evolution:
         _, sha = await self._git("rev-parse", "HEAD")
         return sha
 
+    async def commit_all(self, message: str) -> str:
+        """Commit whatever is currently in the evolvable zone (used after a project restore)."""
+        return await self._commit(message)
+
     async def seed(self) -> None:
         """Create the evolvable zone with default prompts/hooks on first run."""
         if not (self.s.repo_dir / ".git").exists():
