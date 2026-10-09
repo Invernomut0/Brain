@@ -17,7 +17,11 @@ export function AgentList() {
   const [editing, setEditing] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
   const [err, setErr] = useState<string | null>(null)
-  const list = Object.values(agents).filter((a) => !a.endedAt || now - a.endedAt < 30000).sort((a, b) => b.bornAt - a.bornAt)
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const working = (s: string) => s === 'thinking' || s === 'acting'
+  const toggle = (id: string) => setExpanded((p) => { const n = new Set(p); if (!n.delete(id)) n.add(id); return n })
+  const list = Object.values(agents).filter((a) => !a.endedAt || now - a.endedAt < 30000)
+    .sort((a, b) => Number(working(b.state)) - Number(working(a.state)) || b.bornAt - a.bornAt)
 
   const run = async (fn: () => Promise<unknown>) => { setErr(null); try { await fn(); setEditing(null) } catch (e) { setErr(String(e).replace(/^Error: \d+ /, '')) } }
   const rename = (id: string) => draft.trim() && run(() => api.renameAgent(id, draft.trim()))
@@ -37,11 +41,13 @@ export function AgentList() {
         {!list.length && <div className="empty">No active agents.<br />Press ▶ Start at the top to start the system.</div>}
         {list.map((a) => {
           const name = names[a.id]
+          const collapsed = !working(a.state) && !expanded.has(a.id)
           return (
-            <div className="agent" key={a.id} style={{ borderLeft: `3px solid ${roleColor(a.role)}`, opacity: a.endedAt ? 0.6 : 1 }}>
+            <div className={`agent ${collapsed ? 'collapsed' : ''}`} key={a.id} onClick={() => toggle(a.id)} title={collapsed ? 'Click to expand' : undefined}
+              style={{ borderLeft: `3px solid ${roleColor(a.role)}`, opacity: a.endedAt ? 0.6 : 1 }}>
               <div className="top">
                 {editing === a.id ? (
-                  <input className="name-input" autoFocus value={draft} maxLength={32} onChange={(e) => setDraft(e.target.value)}
+                  <input className="name-input" autoFocus value={draft} maxLength={32} onClick={(e) => e.stopPropagation()} onChange={(e) => setDraft(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') rename(a.id); if (e.key === 'Escape') setEditing(null) }} onBlur={() => setEditing(null)} />
                 ) : (
                   <span className="role" style={{ color: roleColor(a.role) }}>{name ?? a.role}</span>
@@ -49,13 +55,13 @@ export function AgentList() {
                 <small style={{ color: '#7f89b8' }}>{name ? `${a.role} · ${a.id}` : a.id}</small>
                 <span className={`badge ${a.state}`}>{a.state === 'acting' ? a.detail : a.state}</span>
                 {editing !== a.id && (
-                  <span className="name-tools">
+                  <span className="name-tools" onClick={(e) => e.stopPropagation()}>
                     <button title="Choose a name" onClick={() => { setDraft(name ?? ''); setEditing(a.id) }}>✎</button>
                     <button title="Roll a new random name" onClick={() => run(() => api.renameAgent(a.id, null))}>⟳</button>
                   </span>
                 )}
               </div>
-              <div className="sub">{a.summary || a.thought || a.task}</div>
+              {!collapsed && <div className="sub">{a.summary || a.thought || a.task}</div>}
             </div>
           )
         })}

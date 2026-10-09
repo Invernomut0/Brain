@@ -31,7 +31,7 @@ function ThoughtCard({ a }: { a: AgentView }) {
   const queued = a.state === 'queued'
   const shown = thinking ? text : a.thought
   return (
-    <div className={`live ${open ? 'open' : ''}`} style={{ ['--c' as string]: color }}>
+    <div className={`live ${open ? 'open' : ''} ${queued && !open ? 'collapsed' : ''}`} style={{ ['--c' as string]: color }}>
       <div className="live-head" onClick={() => setOpen(!open)} title="Click to expand/collapse">
         <i className="live-dot" />
         <b>{name ?? a.role}</b>
@@ -82,7 +82,7 @@ export function LiveThoughts() {
 
   const active = Object.values(agents)
     .filter((a) => !a.endedAt && (a.state === 'thinking' || a.state === 'acting' || a.state === 'queued'))
-    .sort((a, b) => b.bornAt - a.bornAt)
+    .sort((a, b) => Number(a.state === 'queued') - Number(b.state === 'queued') || b.bornAt - a.bornAt)
 
   // Tell 2D views how much of the left edge this panel covers, so they can shift right and stay fully visible.
   const showing = active.length > 0 && !hidden
@@ -103,7 +103,7 @@ export function LiveThoughts() {
           onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onDoubleClick={resetSize} />
       )}
       <button className="live-toggle" onClick={toggle}>{hidden ? `\u25b8 ${active.length} agents working` : '\u25be hide thoughts'}</button>
-      {!hidden && active.slice(0, 3).map((a) => <ThoughtCard key={a.id} a={a} />)}
+      {!hidden && active.map((a) => <ThoughtCard key={a.id} a={a} />)}
     </div>
   )
 }

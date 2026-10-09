@@ -80,6 +80,9 @@ body::before {
 .live-body::-webkit-scrollbar { width: 4px; }
 .live-body::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--c) 50%, transparent); border-radius: 3px; }
 .live-wait { color: var(--dim); font-style: italic; }
+.live.collapsed .live-body { display: none; }
+.live.collapsed .live-head { border-bottom: 0; }
+.live-stack.sized .live.collapsed { flex: 0 0 auto; }
 .live-caret { display: inline-block; width: 6px; height: 11px; margin-left: 2px; vertical-align: -2px; background: var(--c); box-shadow: 0 0 8px var(--c); animation: blink 0.9s steps(2) infinite; }
 .stage .view::before, .stage .view::after { content: ''; position: absolute; width: 26px; height: 26px; border: 2px solid rgba(139, 123, 255, 0.55); pointer-events: none; z-index: 5; }
 .stage .view::before { top: 8px; left: 10px; border-right: 0; border-bottom: 0; border-top-left-radius: 6px; }
@@ -95,6 +98,8 @@ body::before {
 .agent .role { font-weight: 700; letter-spacing: 0.04em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .agent .top small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex-shrink: 2; }
 .agent .sub { color: var(--dim); font-size: 11px; margin-top: 3px; line-height: 1.35; max-height: 3em; overflow: hidden; }
+.agent { cursor: pointer; }
+.agent.collapsed { padding: 4px 10px; margin-bottom: 4px; }
 .naming-bar { padding: 0 14px 8px; font-size: 11px; color: var(--dim); }
 .naming-bar select { margin-left: 6px; background: rgba(255, 255, 255, 0.05); color: var(--txt); border: 1px solid var(--panel-b); border-radius: 7px; padding: 3px 6px; font: inherit; }
 .name-tools { margin-left: auto; display: inline-flex; gap: 2px; opacity: 0; transition: opacity 0.15s; }
