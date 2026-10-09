@@ -226,7 +226,7 @@ class Orchestrator:
         started = time.time()
         await b.goals.set_status(goal["id"], "active")
         role = goal.get("role") or "executor"
-        task = f"GOAL #{goal['id']}: {goal['title']}\n{goal['description']}\n\nBrain's root goal: {self.main_goal()[:200]}"
+        task = f"GOAL #{goal['id']}: {goal['title']}\n{goal['description']}\n\nBrain's root goal: {self.main_goal()}"
         agent = Agent(b, role, task, goal["id"])
         res = await self.run_agent(agent)
         verdict = await self.critique(goal, res, started)
