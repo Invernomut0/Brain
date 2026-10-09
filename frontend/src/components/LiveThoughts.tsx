@@ -16,6 +16,8 @@ function loadSize(): Size | null {
   } catch { return null }
 }
 
+const isIdle = (a: AgentView) => a.state === 'queued' || (a.state === 'thinking' && !useBrain.getState().streams[a.id])
+
 function ThoughtCard({ a }: { a: AgentView }) {
   const raw = useBrain((s) => s.streams[a.id]) ?? ''
   const tps = useBrain((s) => s.streamTps[a.id]) ?? 0
@@ -30,13 +32,15 @@ function ThoughtCard({ a }: { a: AgentView }) {
   const thinking = a.state === 'thinking'
   const queued = a.state === 'queued'
   const shown = thinking ? text : a.thought
+  const waiting = thinking && !text  // nothing streamed yet: collapse like a queued agent
+  const idle = queued || waiting
   return (
-    <div className={`live ${open ? 'open' : ''} ${queued && !open ? 'collapsed' : ''}`} style={{ ['--c' as string]: color }}>
+    <div className={`live ${open ? 'open' : ''} ${idle && !open ? 'collapsed' : ''}`} style={{ ['--c' as string]: color }}>
       <div className="live-head" onClick={() => setOpen(!open)} title="Click to expand/collapse">
         <i className="live-dot" />
         <b>{name ?? a.role}</b>
         <span className="live-id">{name ? a.role : a.id}</span>
-        <span className="live-mode">{thinking ? (reasoning ? 'reasoning' : 'answer') : queued ? 'queued' : a.state === 'acting' ? `tool \u00b7 ${a.detail}` : a.state}</span>
+        <span className="live-mode">{thinking ? (waiting ? 'answer \u00b7 wait' : reasoning ? 'reasoning' : 'answer') : queued ? 'queued' : a.state === 'acting' ? `tool \u00b7 ${a.detail}` : a.state}</span>
         {thinking && tps > 0 && <span className="live-tps">{tps.toFixed(1)} tok/s</span>}
         <span className="live-chev">{open ? '\u25be' : '\u25b8'}</span>
       </div>
@@ -82,7 +86,7 @@ export function LiveThoughts() {
 
   const active = Object.values(agents)
     .filter((a) => !a.endedAt && (a.state === 'thinking' || a.state === 'acting' || a.state === 'queued'))
-    .sort((a, b) => Number(a.state === 'queued') - Number(b.state === 'queued') || b.bornAt - a.bornAt)
+    .sort((a, b) => Number(isIdle(a)) - Number(isIdle(b)) || b.bornAt - a.bornAt)
 
   // Tell 2D views how much of the left edge this panel covers, so they can shift right and stay fully visible.
   const showing = active.length > 0 && !hidden
