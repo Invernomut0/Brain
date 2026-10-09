@@ -1,0 +1,70 @@
+"""Word lists, name patterns and role flavours used by the agent name generator (see names.py)."""
+from __future__ import annotations
+
+DICTIONARY: dict[str, list[str]] = {
+    "titles": ["Sir", "Lord", "Lady", "Captain", "Professor", "Doctor", "Baron", "Count", "Duke", "Admiral", "General", "Commander", "Supreme Overlord", "Inspector", "Reverend", "Sergeant", "Chief", "Grandmaster", "Agent", "King", "Emperor", "Archduke", "Commodore", "Deputy", "The Honorable", "Madam", "Major", "Colonel", "Vice President", "Supreme Chancellor"],
+    "adjectives": ["Wobbly", "Fluffy", "Sneaky", "Grumpy", "Chaotic", "Suspicious", "Majestic", "Unhinged", "Deranged", "Bamboozled", "Gobsmacked", "Squishy", "Pickled", "Overcaffeinated", "Bonkers", "Funky", "Wonky", "Dizzy", "Confused", "Cranky", "Sleep-Deprived", "Radioactive", "Unnecessarily Loud", "Mildly Concerned", "Aggressively Polite", "Emotionally Unavailable", "Questionably Intelligent", "Slightly Moist", "Highly Flammable", "Suspiciously Specific", "Gloriously Incompetent", "Delightfully Cursed", "Permanently Confused", "Chronically Offline", "Wildly Overqualified", "Unreasonably Dramatic", "Existentially Exhausted", "Certified Silly", "Unsupervised", "Accidentally Brilliant", "Barely Functional", "Mysteriously Sticky", "Mildly Haunted", "Incredibly Dramatic", "Unreasonably Tiny", "Terrifyingly Cheerful", "Dramatically Underpaid", "Hyperactive", "Absent-Minded", "Uncomfortably Optimistic"],
+    "animals": ["Penguin", "Ferret", "Pigeon", "Platypus", "Llama", "Hamster", "Raccoon", "Badger", "Duck", "Goose", "Capybara", "Wombat", "Axolotl", "Narwhal", "Otter", "Possum", "Squirrel", "Mongoose", "Sloth", "Alpaca", "Chicken", "Hedgehog", "Pangolin", "Flamingo", "Walrus", "Tardigrade", "Blobfish", "Seagull", "Mole", "Weasel", "Turkey", "Tapir", "Koala", "Newt", "Lobster", "Crab", "Meerkat", "Quokka", "Chinchilla", "Aardvark", "Puffin", "Manatee", "Corgi", "Moth", "Frog", "Yak", "Hippopotamus", "Shrew", "Owl", "Beaver"],
+    "foods": ["Potato", "Waffle", "Pickle", "Noodle", "Spaghetti", "Meatball", "Muffin", "Taco", "Biscuit", "Banana", "Donut", "Burrito", "Dumpling", "Cheesecake", "Pancake", "Broccoli", "Cucumber", "Jellybean", "Marshmallow", "Turnip", "Bagel", "Pretzel", "Avocado", "Nugget", "Tofu", "Pudding", "Gnocchi", "Lasagna", "Mayonnaise", "Custard", "Sausage", "Cabbage", "Crouton", "Nacho", "Meatloaf", "Tater Tot", "Popcorn", "Ravioli", "Macaroni", "Brussels Sprout", "Cheddar", "Bacon", "Cornflake", "Tiramisu", "Marmalade", "Cupcake", "Ketchup", "Wonton", "Jelly Donut", "Mushroom"],
+    "objects": ["Toaster", "Stapler", "Teapot", "Spoon", "Sock", "Microwave", "Blender", "Keyboard", "Traffic Cone", "Rubber Duck", "Vacuum Cleaner", "Garden Gnome", "Shopping Cart", "Disco Ball", "Paperclip", "Wi-Fi Router", "Coffee Machine", "Frying Pan", "Broomstick", "Desk Lamp", "Calculator", "Office Chair", "Tinfoil Hat", "USB Dongle", "Trash Can", "Fidget Spinner", "Lawn Mower", "Waffle Iron", "Printer", "Smart Fridge", "Spatula", "Toilet Brush", "Umbrella", "Fax Machine", "Paper Shredder", "Mop", "Alarm Clock", "Staple Remover", "Squeaky Toy", "Whiteboard", "Banana Peel", "Couch Cushion", "Disco Helmet", "Bubble Wrap", "Charging Cable"],
+    "tech": ["Quantum", "Cyber", "Neural", "Turbo", "Hyper", "Nano", "Mega", "Glitchy", "Pixelated", "Encrypted", "Recursive", "Overclocked", "Multithreaded", "Distributed", "Cloud-Native", "Serverless", "Buggy", "Autonomous", "Synthetic", "Virtual", "Algorithmic", "404", "Zero-Day", "Token-Hungry", "Hallucinating", "Cache-Invalidating", "Unpatched", "Legacy", "GPU-Melting", "Prompt-Injected", "Kernel-Panicked", "Latency-Loving", "Containerized", "Uncached", "Unstable", "Self-Hosting", "Segfaulting", "Infinite-Looping", "Retrying", "Overfitted", "Unaligned", "Packet-Dropping", "Memory-Leaking", "Deprecated", "Deep-Fried"],
+    "jobs": ["Debugger", "Wizard", "Architect", "Hacker", "Intern", "Consultant", "Overlord", "Strategist", "Engineer", "Detective", "Ninja", "Accountant", "Philosopher", "Janitor", "Bureaucrat", "Sorcerer", "Troublemaker", "Code Whisperer", "Bug Hunter", "Chaos Coordinator", "Professional Procrastinator", "Snack Inspector", "Reality Checker", "Meme Curator", "Chief Nonsense Officer", "Spreadsheet Warrior", "Meeting Avoider", "Data Wrangler", "Bug Exorcist", "Prompt Tamer", "Syntax Sheriff", "Chaos Engineer", "Coffee Supervisor", "Junior Overthinker", "Deployment Goblin", "Chief Vibe Officer", "Incident Magnet", "Spreadsheet Sorcerer", "Documentation Dodger", "Log Whisperer"],
+    "verbs": ["Debugging", "Overthinking", "Screaming", "Panicking", "Dancing", "Hacking", "Wobbling", "Plotting", "Napping", "Yelling", "Googling", "Juggling", "Complaining", "Daydreaming", "Calculating", "Procrastinating", "Malfunctioning", "Vibing", "Hibernating", "Overengineering", "Rebooting", "Hallucinating", "Buffering", "Refactoring", "Sneezing", "Honk-Honking", "Moonwalking", "Yodeling", "Facepalming", "Multitasking"],
+    "places": ["the Void", "the Basement", "the Cloud", "the Forbidden Server Room", "the Shadow Realm", "the Snack Dimension", "the Infinite Loop", "the Debugging Dungeon", "the Great Firewall", "the Quantum Fridge", "the Corporate Abyss", "the Spaghetti Dimension", "the Forgotten Datacenter", "the Unpaid Internship", "the Cursed Repository", "the Meeting That Never Ends", "the Backrooms", "the Coffee Nebula", "the Lost Kubernetes Cluster", "the Suspicious Pantry", "the Recursive Swamp", "the Broken Build Pipeline", "the Forbidden Slack Channel"],
+    "realms": ["the Ancient Kernel", "Mount Mainframe", "the Sunken Datacenter", "Castle Cache", "the Realm of Rust", "the Elder Repository", "the Kingdom of Kubernetes", "the Whispering Cron Jobs", "the Isles of Latency", "the Great Garbage Collector", "the Shire of Stack Traces", "the Marble Halls of Merge Conflicts"],
+    "suffixes": ["of Doom", "the Third", "McFluff", "3000", "the Unwise", "Supreme", "von Waffles", "the Magnificent", "Jr.", "the Destroyer", "Esquire", "the Slightly Annoying", "of Questionable Wisdom", "the Undefeated-ish", "the Occasionally Useful", "the Mildly Dangerous", "the Exceptionally Average", "the Unnecessarily Complicated", "the Intern of Destiny", "the Accidental Genius", "the Eternal Intern", "the Extremely Online", "the Overqualified", "the Unscheduled", "the Almost Competent", "the Confounder", "of Mild Inconvenience", "the Unpaid", "the Perpetually Loading", "the Tiny Menace"],
+    "sounds": ["Boop", "Bloop", "Bonk", "Bingus", "Bongus", "Floof", "Sploot", "Wumbus", "Dingus", "Wobble", "Noodle", "Snork", "Blip", "Bork", "Sprocket", "Fizzle", "Plonky", "Goober", "Squonk", "Zonk", "Honk", "Blorp", "Bibble", "Snizzle", "Womp", "Ploop", "Boingo", "Flump", "Snoot", "Bungo"],
+    "catchphrases": ["Trust Me Bro", "This Is Fine", "It Works On My Machine", "Probably Not A Bug", "Have You Tried Rebooting", "Nobody Read The Documentation", "Task Failed Successfully", "I Have No Idea", "Everything Is Under Control", "It's A Feature Not A Bug", "Let Me Overthink That", "Powered By Coffee And Regret", "Deploy On Friday", "Definitely Not A Robot", "I Accidentally Deleted Production", "Let's Add More Logs", "I Blame DNS", "Who Approved This", "Just One More Retry", "I Read Half The Docs"],
+    # compact lists behind the heroic / pirate / scifi / cozy / office styles
+    "title": ["Captain", "Professor", "Doctor", "Admiral", "Sir", "Lady", "Baron", "Commander", "Maestro", "Chief", "Madame", "Count"],
+    "first": ["Pixel", "Gizmo", "Nimbus", "Biscuit", "Quark", "Pepper", "Orbit", "Waffle", "Zephyr", "Cobalt", "Juniper", "Marlow",
+              "Fizz", "Otto", "Mochi", "Tango", "Ziggy", "Sprocket", "Clover", "Bolt"],
+    "adj": ["Unflappable", "Caffeinated", "Meticulous", "Fearless", "Curious", "Relentless", "Sneaky", "Thoughtful", "Dapper",
+            "Tireless", "Cunning", "Cheerful", "Stoic", "Radiant", "Pedantic", "Wily"],
+    "noun": ["Compiler", "Navigator", "Tinkerer", "Oracle", "Wrangler", "Whisperer", "Architect", "Cartographer", "Debugger",
+             "Alchemist", "Scribe", "Sentinel", "Juggler", "Detective"],
+    "pirate_adj": ["Salty", "Barnacle", "Rusty", "Scurvy", "Grog-Soaked", "One-Eyed", "Dread", "Bilge", "Rum-Runner", "Cannonball"],
+    "pirate_noun": ["Parrot", "Plank", "Doubloon", "Anchor", "Kraken", "Cutlass", "Compass", "Gull", "Mast", "Treasure"],
+    "greek": ["Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta", "Theta", "Kappa", "Lambda", "Sigma", "Omega", "Tau"],
+    "scifi": ["Unit", "Node", "Probe", "Drone", "Core", "Relay", "Beacon", "Vector"],
+    "num": ["7", "9", "12", "21", "42", "64", "88", "101", "404", "512", "777", "1337"],
+    "mood": ["Sleepy", "Grumpy", "Bouncy", "Sparkly", "Fluffy", "Giggly", "Cozy", "Zesty", "Wobbly", "Mellow"],
+    "food": ["Waffle", "Noodle", "Muffin", "Pickle", "Dumpling", "Biscuit", "Pretzel", "Tofu", "Croissant", "Meatball"],
+    "animal": ["Otter", "Badger", "Penguin", "Capybara", "Hedgehog", "Llama", "Axolotl", "Narwhal", "Koala", "Raccoon"],
+    "dept": ["Synergy", "Compliance", "Paperwork", "Quarterly", "Deadline", "Roadmap", "Backlog", "Stakeholder"],
+    "corp_role": ["Specialist", "Liaison", "Facilitator", "Strategist", "Coordinator", "Evangelist", "Consultant", "Analyst"],
+}
+
+PATTERNS: dict[str, list[str]] = {
+    "classic": ["{adjectives} {animals}", "{adjectives} {foods}", "{adjectives} {objects}", "{sounds} {animals}"],
+    "royal": ["{titles} {adjectives} {foods}", "{titles} {animals} {suffixes}", "{titles} {adjectives} {animals}", "{titles} {foods}, {jobs}"],
+    "corporate": ["{adjectives} {animals} {jobs}", "{titles} {foods}, {jobs}", "{adjectives} {jobs} from {places}", "{objects} {jobs} {suffixes}"],
+    "cyber": ["{tech} {animals} {suffixes}", "{tech} {foods} {jobs}", "{tech} {objects} {suffixes}", "{adjectives} {tech} {animals}"],
+    "fantasy": ["{titles} {animals} of {realms}", "{animals} from {places}", "{titles} {adjectives} {animals} {suffixes}", "{foods} {jobs} of {realms}"],
+    "action": ["{verbs} {animals} {suffixes}", "{verbs} {foods} {jobs}", "{adjectives} {animals} {suffixes}", "{titles} {verbs} {objects}"],
+    "nonsense": ["{sounds}-{sounds} the {adjectives} {animals}", "{sounds} {foods} {suffixes}", "{adjectives} {objects} from {places}", "{sounds}-{sounds} {jobs}"],
+    "memes": ["{foods}: {catchphrases}", "{animals}: {catchphrases}", "{titles} {foods} — {catchphrases}", "{tech} {objects}: {catchphrases}"],
+    "heroic": ["{title} {first} the {adj}", "{first} the {adj} {noun}", "{title} {first}, {noun}"],
+    "pirate": ["Captain {pirate_adj} {pirate_noun}", "{first} {pirate_adj} {pirate_noun}", "{pirate_adj} {first} of the {pirate_noun}"],
+    "scifi": ["{greek}-{num} {scifi}", "{scifi} {greek}-{num}", "{first}-{num}"],
+    "cozy": ["{mood} {food} {animal}", "{mood} {animal}", "{first} the {mood} {animal}"],
+    "office": ["{first} from {dept}", "{dept} {corp_role} {first}", "{title} {first}, Head of {dept}"],
+}
+
+# Styles that fit each role when the style is "all": Brain's own roles plus generic ones; unknown roles use every style.
+ROLE_FLAVORS: dict[str, list[str]] = {
+    "planner": ["royal", "corporate", "heroic", "office"],
+    "executor": ["action", "heroic", "pirate", "classic"],
+    "researcher": ["royal", "classic", "fantasy", "scifi"],
+    "engineer": ["cyber", "corporate", "nonsense", "scifi"],
+    "critic": ["memes", "office", "pirate", "action"],
+    "reflector": ["cozy", "fantasy", "classic"],
+    "evolver": ["cyber", "scifi", "nonsense"],
+    "coding": ["cyber", "corporate", "nonsense"],
+    "security": ["cyber", "action", "fantasy"],
+    "research": ["royal", "classic", "fantasy"],
+    "planning": ["corporate", "royal", "nonsense"],
+    "monitoring": ["cyber", "classic", "corporate"],
+    "memory": ["fantasy", "nonsense", "royal"],
+    "orchestrator": ["royal", "corporate", "fantasy"],
+}

@@ -4,7 +4,9 @@ import { roleColor, useBrain } from '../store'
 import { useNow } from '../hooks/useNow'
 
 const STYLE_LABEL: Record<string, string> = {
-  off: 'Off (plain ids)', all: 'All styles (by role)', heroic: 'Heroic', pirate: 'Pirate', scifi: 'Sci-fi', cozy: 'Cozy', corporate: 'Corporate',
+  off: 'Off (plain ids)', all: 'All styles (by role)', classic: 'Classic', royal: 'Royal', corporate: 'Corporate', cyber: 'Cyber',
+  fantasy: 'Fantasy', action: 'Action', nonsense: 'Nonsense', memes: 'Memes', heroic: 'Heroic', pirate: 'Pirate', scifi: 'Sci-fi',
+  cozy: 'Cozy', office: 'Office',
 }
 
 export function AgentList() {

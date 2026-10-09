@@ -3,7 +3,24 @@ from fastapi.testclient import TestClient
 
 from brain.api import create_app
 from brain.core import Brain
-from brain.names import PATTERNS, ROLE_FLAVORS, AgentNameError
+from brain.names import ROLE_FLAVORS, TOKEN_RE, AgentNameError, MAX_NAME
+from brain.names_data import DICTIONARY, PATTERNS
+
+
+def test_every_pattern_token_exists_and_every_flavor_is_a_style():
+    for style, patterns in PATTERNS.items():
+        for p in patterns:
+            assert all(t in DICTIONARY and DICTIONARY[t] for t in TOKEN_RE.findall(p)), (style, p)
+    assert all(s in PATTERNS for styles in ROLE_FLAVORS.values() for s in styles)
+    assert all(r in ROLE_FLAVORS for r in ("planner", "executor", "researcher", "engineer", "critic", "reflector", "evolver"))
+
+
+async def test_generated_names_fit_the_limit_in_every_style(brain):
+    for style in PATTERNS:
+        brain.names.set_style(style)
+        for i in range(150):
+            name = brain.names.assign(f"{style}-{i}", "executor")
+            assert 1 <= len(name) <= MAX_NAME and name.isprintable()
 
 
 async def test_every_agent_gets_a_stable_unique_name(brain):
@@ -25,7 +42,7 @@ async def test_style_is_selectable_and_off_keeps_plain_ids(brain):
     brain.names.set_style("off")
     assert brain.names.assign("new-agent", "executor") is None
     with pytest.raises(AgentNameError):
-        brain.names.set_style("nonsense")
+        brain.names.set_style("no-such-style")
 
 
 async def test_rename_by_hand_and_reroll(brain):
@@ -36,7 +53,7 @@ async def test_rename_by_hand_and_reroll(brain):
     with pytest.raises(AgentNameError):
         brain.names.rename("eng-2", "captain nemo")  # unique, case-insensitive
     with pytest.raises(AgentNameError):
-        brain.names.rename("eng-2", "x" * 41)
+        brain.names.rename("eng-2", "x" * 49)
     with pytest.raises(AgentNameError):
         brain.names.rename("eng-2", "   ")
     assert brain.names.rename("eng-1", "Captain Nemo") == "Captain Nemo"  # keeping its own name is fine

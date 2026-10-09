@@ -81,9 +81,9 @@ Brain keeps a persistent, interlinked **markdown wiki** of what it knows about i
 * **Wiki tab** (main stage): map of the pages (2D canvas or 3D, switch bottom-right; the choice is shared with the goal tree and the tools graph). *Links* = force layout by links; *Semantic map* = pages positioned by the PCA of their vectors (similar meaning = close; 3 components in 3D). Click a node to read the page (links are clickable), legend chips hide types, search highlights matches; **Index / Log / Health / Schema** open the special files and **↻ Update wiki** syncs and ingests on demand.
 
 ### Agent names
-Agents keep a technical id (`critic-4`: used by events, containers and goals) but people see a memorable **name** (e.g. *Captain Pixel the Unflappable*), generated from word dictionaries and patterns in `backend/brain/names.py`. Names are unique (case-insensitive), stable per agent id, stored in the database (so they travel with projects) and shown in the agent list, live thoughts, 2D/3D views, tools graph and event feed.
+Agents keep a technical id (`critic-4`: used by events, containers and goals) but people see a memorable **name** (e.g. *Captain Pixel the Unflappable*), generated from word dictionaries and patterns (`backend/brain/names_data.py`, engine in `names.py`). Names are unique (case-insensitive), stable per agent id, stored in the database (so they travel with projects) and shown in the agent list, live thoughts, 2D/3D views, tools graph and event feed.
 
-* **Style**: the *Names* selector in the Agents panel chooses `off` (plain ids), `all` (each role gets styles that fit it) or one of `heroic`, `pirate`, `scifi`, `cozy`, `corporate`. It applies to agents created from then on.
+* **Style**: the *Names* selector in the Agents panel chooses `off` (plain ids), `all` (each role gets styles that fit it) or one of 13 styles (`classic`, `royal`, `corporate`, `cyber`, `fantasy`, `action`, `nonsense`, `memes`, `heroic`, `pirate`, `scifi`, `cozy`, `office`; word lists in `backend/brain/names_data.py`). It applies to agents created from then on.
 * **Choose or roll**: hover an agent and use ✎ to type a name, or ⟳ to roll a new generated one (the id never changes).
 
 ### Projects (save / load / new)
@@ -126,7 +126,7 @@ See [.env.example](.env.example). The LM Studio model is chosen with `BRAIN_LLM_
 | POST | `/api/v1/budget` | `{max_cycles, max_tokens}` |
 | POST | `/api/v1/reset` | `{confirm: "RESET"}` - factory reset: wipes database, sandbox workspace/tools, prompts and hooks (back to defaults) |
 | POST | `/api/v1/chat` | `{text}` — talk to Brain (may create a goal) |
-| GET, PUT | `/api/v1/naming` | `{style}`: agent naming style (`off`, `all`, `heroic`, `pirate`, `scifi`, `cozy`, `corporate`) |
+| GET, PUT | `/api/v1/naming` | `{style}`: agent naming style (`off`, `all` or one of the 13 styles above) |
 | PUT | `/api/v1/agents/{id}/name` | `{name}` set a name by hand (422 if empty, longer than 40 or taken); `{name: null}` rolls a new generated one |
 | GET, PUT | `/api/v1/owner` | `{name}`: who Brain works for. Asked by the dashboard when unknown (first run, after a reset); stored with the project and used in every prompt, question and the wiki; renaming also updates the self-model |
 | GET | `/api/v1/projects` | `{current, items}`: active project and saved snapshots (newest first, with stats) |

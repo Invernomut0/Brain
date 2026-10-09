@@ -11,46 +11,12 @@ import sqlite3
 import time
 
 from .db import Database
+from .names_data import DICTIONARY, PATTERNS, ROLE_FLAVORS
 
 TOKEN_RE = re.compile(r"\{(\w+)\}")
 KV_STYLE = "naming_style"
 OFF, ALL, CUSTOM = "off", "all", "custom"
-MAX_NAME = 40
-
-DICTIONARY: dict[str, list[str]] = {
-    "title": ["Captain", "Professor", "Doctor", "Admiral", "Sir", "Lady", "Baron", "Commander", "Maestro", "Chief", "Madame", "Count"],
-    "first": ["Pixel", "Gizmo", "Nimbus", "Biscuit", "Quark", "Pepper", "Orbit", "Waffle", "Zephyr", "Cobalt", "Juniper", "Marlow",
-              "Fizz", "Otto", "Mochi", "Tango", "Ziggy", "Sprocket", "Clover", "Bolt"],
-    "adj": ["Unflappable", "Caffeinated", "Meticulous", "Fearless", "Curious", "Relentless", "Sneaky", "Thoughtful", "Dapper",
-            "Tireless", "Cunning", "Cheerful", "Stoic", "Radiant", "Pedantic", "Wily"],
-    "noun": ["Compiler", "Navigator", "Tinkerer", "Oracle", "Wrangler", "Whisperer", "Architect", "Cartographer", "Debugger",
-             "Alchemist", "Scribe", "Sentinel", "Juggler", "Detective"],
-    "pirate_adj": ["Salty", "Barnacle", "Rusty", "Scurvy", "Grog-Soaked", "One-Eyed", "Dread", "Bilge", "Rum-Runner", "Cannonball"],
-    "pirate_noun": ["Parrot", "Plank", "Doubloon", "Anchor", "Kraken", "Cutlass", "Compass", "Gull", "Mast", "Treasure"],
-    "greek": ["Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta", "Theta", "Kappa", "Lambda", "Sigma", "Omega", "Tau"],
-    "scifi": ["Unit", "Node", "Probe", "Drone", "Core", "Relay", "Beacon", "Vector"],
-    "num": ["7", "9", "12", "21", "42", "64", "88", "101", "404", "512", "777", "1337"],
-    "mood": ["Sleepy", "Grumpy", "Bouncy", "Sparkly", "Fluffy", "Giggly", "Cozy", "Zesty", "Wobbly", "Mellow"],
-    "food": ["Waffle", "Noodle", "Muffin", "Pickle", "Dumpling", "Biscuit", "Pretzel", "Tofu", "Croissant", "Meatball"],
-    "animal": ["Otter", "Badger", "Penguin", "Capybara", "Hedgehog", "Llama", "Axolotl", "Narwhal", "Koala", "Raccoon"],
-    "dept": ["Synergy", "Compliance", "Paperwork", "Quarterly", "Deadline", "Roadmap", "Backlog", "Stakeholder"],
-    "corp_role": ["Specialist", "Liaison", "Facilitator", "Strategist", "Coordinator", "Evangelist", "Consultant", "Analyst"],
-}
-
-PATTERNS: dict[str, list[str]] = {
-    "heroic": ["{title} {first} the {adj}", "{first} the {adj} {noun}", "{title} {first}, {noun}"],
-    "pirate": ["Captain {pirate_adj} {pirate_noun}", "{first} {pirate_adj} {pirate_noun}", "{pirate_adj} {first} of the {pirate_noun}"],
-    "scifi": ["{greek}-{num} {scifi}", "{scifi} {greek}-{num}", "{first}-{num}"],
-    "cozy": ["{mood} {food} {animal}", "{mood} {animal}", "{first} the {mood} {animal}"],
-    "corporate": ["{first} from {dept}", "{dept} {corp_role} {first}", "{title} {first}, Head of {dept}"],
-}
-
-# Styles that fit each role when the style is "all".
-ROLE_FLAVORS: dict[str, list[str]] = {
-    "planner": ["heroic", "corporate"], "critic": ["corporate", "pirate"], "researcher": ["scifi", "cozy"],
-    "engineer": ["scifi", "corporate"], "executor": ["heroic", "pirate"], "reflector": ["cozy", "scifi"],
-    "evolver": ["scifi", "heroic"],
-}
+MAX_NAME = 48
 
 
 class AgentNameError(ValueError):
@@ -101,7 +67,7 @@ class AgentNames:
         for _ in range(2000):
             used = self.rng.choice(styles)
             name = self._expand(self.rng.choice(PATTERNS[used]))
-            if not self.db.one("SELECT 1 FROM agent_names WHERE name=?", (name,)):
+            if len(name) <= MAX_NAME and not self.db.one("SELECT 1 FROM agent_names WHERE name=?", (name,)):
                 return name, used
         raise RuntimeError("unable to generate a unique agent name after 2000 attempts")
 
