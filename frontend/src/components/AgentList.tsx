@@ -53,7 +53,7 @@ export function AgentList() {
                   <span className="role" style={{ color: roleColor(a.role) }}>{name ?? a.role}</span>
                 )}
                 <small style={{ color: '#7f89b8' }}>{name ? `${a.role} · ${a.id}` : a.id}</small>
-                <span className={`badge ${a.state}`}>{a.state === 'acting' ? a.detail : a.state}</span>
+                <span className={`badge ${a.state}`}>{a.state === 'acting' ? a.detail : a.state === 'thinking' ? 'working' : a.state}</span>
                 {editing !== a.id && (
                   <span className="name-tools" onClick={(e) => e.stopPropagation()}>
                     <button title="Choose a name" onClick={() => { setDraft(name ?? ''); setEditing(a.id) }}>✎</button>
