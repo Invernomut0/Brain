@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AgentList } from './components/AgentList'
 import { Chat, EventFeed, EvolutionView, Journal, LessonsView, ToolsView } from './components/Dock'
 import { MemoriesView, StatusView } from './components/Knowledge'
@@ -14,7 +14,7 @@ import { SelfModelPanel } from './components/SelfModelPanel'
 import { ToolGalaxy } from './components/ToolGalaxy'
 import { WikiView } from './components/Wiki'
 import { useBrainSocket } from './hooks/useBrainSocket'
-import { ROLE_COLOR } from './store'
+import { ROLE_COLOR, useBrain } from './store'
 
 const STAGE = { neural: 'Neural network', goals: 'Goal tree', tools: 'Agents ↔ Tools', wiki: 'Wiki' } as const
 const VMODE_KEY = 'brain.viewmode'
@@ -34,6 +34,12 @@ export default function App() {
   })
   const setStage = (s: keyof typeof STAGE) => { history.replaceState(null, '', `#${s}`); setStageState(s) }
   const [dock, setDock] = useState<keyof typeof DOCK>('feed')
+  const chat = useBrain((s) => s.chat)
+  const chatSeen = useBrain((s) => s.chatSeen)
+  // Brain messages after the user's last message and after the last time the chat was in view
+  const lastUser = chat.reduce((t, m) => (m.role === 'user' ? Math.max(t, m.ts) : t), 0)
+  const unread = dock === 'chat' ? 0 : chat.filter((m) => m.role === 'brain' && m.ts > Math.max(chatSeen, lastUser)).length
+  useEffect(() => { if (dock === 'chat') useBrain.getState().markChatSeen() }, [dock, chat])
   const [vmode, setVmodeState] = useState<VMode>(() => (['3d', '2d', 'off'].includes(localStorage.getItem(VMODE_KEY) ?? '') ? localStorage.getItem(VMODE_KEY) as VMode : '3d'))
   const setVmode = (m: VMode) => { localStorage.setItem(VMODE_KEY, m); setVmodeState(m) }
 
@@ -77,7 +83,7 @@ export default function App() {
       </aside>
       <section className="panel dock">
         <div className="tabs">
-          {(Object.keys(DOCK) as (keyof typeof DOCK)[]).map((k) => <div key={k} className={`tab ${dock === k ? 'on' : ''}`} onClick={() => setDock(k)}>{DOCK[k]}</div>)}
+          {(Object.keys(DOCK) as (keyof typeof DOCK)[]).map((k) => <div key={k} className={`tab ${dock === k ? 'on' : ''}`} onClick={() => setDock(k)}>{DOCK[k]}{k === 'chat' && unread > 0 && <span className="tab-count" title={`${unread} message${unread > 1 ? 's' : ''} waiting for your reply`}>{unread > 99 ? '99+' : unread}</span>}</div>)}
         </div>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', paddingTop: 6 }}>
           <ErrorBoundary key={dock} name={DOCK[dock]}>

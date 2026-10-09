@@ -28,6 +28,15 @@ export function toolTarget(tool: string): string {
   return `tool:${tool}`
 }
 
+/** Chat messages older than the first visit count as seen; afterwards the stored value is kept. */
+const CHAT_SEEN_KEY = 'brain.chat.seen'
+function seenInit(chat: { ts: number }[], current: number): number {
+  if (localStorage.getItem(CHAT_SEEN_KEY) !== null) return current
+  const last = chat.at(-1)?.ts ?? 0
+  localStorage.setItem(CHAT_SEEN_KEY, String(last))
+  return last
+}
+
 /** Long agent names are cut for graph labels; lists show them in full (with CSS ellipsis). */
 export const shortName = (s: string, n = 26) => (s.length > n ? s.slice(0, n - 1) + '…' : s)
 
@@ -60,6 +69,8 @@ interface Store {
   names: Record<string, string>  // agent id -> display name (absent when naming is off)
   naming: { style: string; styles: string[] }
   loaded: boolean  // first snapshot received
+  chatSeen: number  // ts of the last chat message the user has seen
+  markChatSeen: () => void
   setGraphMode: (m: '2d' | '3d') => void
   sys: { cpu: number; mem: number; tps: number; tokens: number; llm_busy: number; llm_queued: number; calls: number; uptime: number; live_agents: number }
   setConnected: (c: boolean) => void
@@ -79,6 +90,11 @@ export const useBrain = create<Store>((set, get) => ({
   graphMode: location.hash.endsWith(':3d') || localStorage.getItem('brain.graphmode') === '3d' ? '3d' : '2d',
   project: { name: 'Untitled project', saved: false },
   owner: '',
+  chatSeen: Number(localStorage.getItem(CHAT_SEEN_KEY) ?? 0),
+  markChatSeen: () => {
+    const last = get().chat.at(-1)?.ts ?? 0
+    if (last > get().chatSeen) { localStorage.setItem(CHAT_SEEN_KEY, String(last)); set({ chatSeen: last }) }
+  },
   names: {},
   naming: { style: 'all', styles: ['off', 'all'] },
   loaded: false,
@@ -115,6 +131,7 @@ export const useBrain = create<Store>((set, get) => ({
       evolutions: s.evolutions, events: s.events, lessons: s.lessons ?? [], streams, streamTps,
       project: s.project ? { name: s.project.name, saved: s.project.saved } : { name: 'Untitled project', saved: false },
       owner: s.owner ?? '', loaded: true,
+      chatSeen: seenInit(s.chat, get().chatSeen),
       names: s.names ?? {}, naming: s.naming ?? { style: 'all', styles: ['off', 'all'] },
     })
   },

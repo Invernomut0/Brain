@@ -113,7 +113,7 @@ The header chip **▣ project name** opens the *Projects* dialog. A project is a
 | Wiki | map of the wiki (links or semantic layout, 2D or 3D) with a page reader |
 | Right panel | awareness gauge + calibration/introspection/success bars, LLM tok/s, CPU, RAM sparklines |
 | Left panel | live agents (only agents already streaming or acting show their text; queued, idle, finished or still waiting for the model ones collapse to the title row, click to expand) and the evolving self-model; the live thoughts panel takes half of the stage by default, the 2D view the other half |
-| Dock | live event feed, chat with Brain, project status, memories, journal, lessons, tools, evolution history |
+| Dock | live event feed, chat with Brain (the Chat tab shows a badge with the number of Brain messages waiting for your reply), project status, memories, journal, lessons, tools, evolution history |
 
 ## Configuration (`.env`)
 See [.env.example](.env.example). The LM Studio model is chosen with `BRAIN_LLM_MODEL` (an id from `GET /v1/models`; if it is not loaded, Brain logs a warning and falls back to the first chat model). Also: embeddings model, budgets (`BRAIN_MAX_CYCLES`, `BRAIN_MAX_TOKENS`), reflection/evolution cadence, sandbox limits.

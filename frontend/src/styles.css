@@ -59,6 +59,8 @@ body::before {
 .tabs { display: flex; gap: 4px; padding: 8px 10px 0; }
 .tab { cursor: pointer; padding: 5px 12px; border-radius: 8px; font-size: 11px; letter-spacing: 0.08em; color: var(--dim); border: 1px solid transparent; text-transform: uppercase; }
 .tab.on { color: var(--txt); background: rgba(139, 123, 255, 0.2); border-color: var(--panel-b); }
+.tab-count { display: inline-block; min-width: 17px; margin-left: 7px; padding: 0 5px; border-radius: 999px; background: var(--pink); color: #fff; font-size: 10px; font-weight: 700; letter-spacing: 0; line-height: 17px; text-align: center; box-shadow: 0 0 10px var(--pink); animation: tab-pop 1.6s ease-in-out infinite; }
+@keyframes tab-pop { 50% { box-shadow: 0 0 16px 2px var(--pink); transform: scale(1.08); } }
 
 /* stage */
 .stage { grid-column: 2; grid-row: 2; position: relative; }
