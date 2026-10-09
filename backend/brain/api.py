@@ -47,6 +47,11 @@ class ProjectNewIn(BaseModel):
     name: str
     main_goal: str | None = None
     save_current: bool = True
+    owner: str | None = None
+
+
+class OwnerIn(BaseModel):
+    name: str
 
 
 def create_app(brain: Brain | None = None) -> FastAPI:
@@ -66,7 +71,7 @@ def create_app(brain: Brain | None = None) -> FastAPI:
         yield
         await brain.shutdown()
 
-    app = FastAPI(title="Brain", version="0.1.22", lifespan=lifespan)
+    app = FastAPI(title="Brain", version="0.1.23", lifespan=lifespan)
     app.state.brain = brain
     app.add_middleware(
         CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -97,6 +102,17 @@ def create_app(brain: Brain | None = None) -> FastAPI:
         except ValueError as e:
             raise HTTPException(422, str(e)) from e
         return {"title": root["title"], "text": root["description"], "cancelled": root["cancelled"]}
+
+    @app.get("/api/v1/owner")
+    async def get_owner():
+        return {"name": brain.owner_name}
+
+    @app.put("/api/v1/owner")
+    async def put_owner(body: OwnerIn):
+        try:
+            return {"name": await brain.set_owner(body.name)}
+        except ValueError as e:
+            raise HTTPException(422, str(e)) from e
 
     @app.post("/api/v1/reset")
     async def reset(body: ResetIn):
@@ -182,7 +198,7 @@ def create_app(brain: Brain | None = None) -> FastAPI:
 
     @app.post("/api/v1/projects/new")
     async def projects_new(body: ProjectNewIn):
-        return await _project_call(brain.projects.new(body.name, body.main_goal, body.save_current))
+        return await _project_call(brain.projects.new(body.name, body.main_goal, body.save_current, body.owner))
 
     @app.post("/api/v1/projects/{pid}/load")
     async def projects_load(pid: str, body: ProjectLoadIn | None = None):

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { api, type ProjectInfo, type ProjectMeta } from '../api'
+import { useBrain } from '../store'
 
 const mb = (n: number) => (n >= 1e6 ? (n / 1e6).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1e3)) + ' KB')
 const when = (t: number) => new Date(t * 1000).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
@@ -12,6 +13,7 @@ export function ProjectsDialog({ onClose }: { onClose: () => void }) {
   const [saveName, setSaveName] = useState('')
   const [newName, setNewName] = useState('')
   const [newGoal, setNewGoal] = useState('')
+  const [newOwner, setNewOwner] = useState(useBrain.getState().owner)
   const [saveFirst, setSaveFirst] = useState(true)
   const [busy, setBusy] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -42,7 +44,7 @@ export function ProjectsDialog({ onClose }: { onClose: () => void }) {
     if (!confirm(`Delete the saved project "${p.name}"? This cannot be undone.`)) return
     run('del:' + p.id, () => api.deleteProject(p.id), `Deleted "${p.name}".`)
   }
-  const create = () => run('new', () => api.newProject(newName.trim(), newGoal, saveFirst), undefined, true)
+  const create = () => run('new', () => api.newProject(newName.trim(), newGoal, saveFirst, newOwner), undefined, true)
 
   const locked = busy !== null
   return createPortal(
@@ -80,6 +82,9 @@ export function ProjectsDialog({ onClose }: { onClose: () => void }) {
         <h3>New project</h3>
         <label>Name
           <input value={newName} disabled={locked} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. Risotto research" maxLength={60} />
+        </label>
+        <label>Owner (who Brain works for; leave empty to be asked afterwards)
+          <input value={newOwner} disabled={locked} onChange={(e) => setNewOwner(e.target.value)} maxLength={60} />
         </label>
         <label>Main goal (optional, 10+ characters; the factory goal is used if empty)
           <textarea rows={3} value={newGoal} disabled={locked} onChange={(e) => setNewGoal(e.target.value)} />

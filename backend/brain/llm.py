@@ -1,6 +1,6 @@
 """Async client for LM Studio's OpenAI-compatible API (chat streaming + embeddings).
 
-Requests carry a priority: chat with Lorenzo (priority 0) preempts agent work (priority 1) so he gets
+Requests carry a priority: chat with the owner (priority 0) preempts agent work (priority 1) so he gets
 an answer as soon as possible; preempted agent requests are transparently restarted afterwards.
 """
 from __future__ import annotations
@@ -214,8 +214,8 @@ class LLMClient:
 
     async def health(self) -> dict:
         try:
-            ids = await self.list_models()
             states = await self.model_states()
+            ids = list(states) if states else await self.list_models()  # one request when the REST API answers
             name = self.model or self.s.llm_model
             return {"ok": True, "model": name, "models": ids, "state": states.get(name)}
         except Exception as e:  # noqa: BLE001

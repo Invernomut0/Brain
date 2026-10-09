@@ -174,7 +174,7 @@ class Projects:
             _copy_tree(src / "evolvable" / sub, b.settings.evolvable_dir / sub)
 
     # ---------------------------------------------------------------------- new
-    async def new(self, name: str, main_goal: str | None = None, save_current: bool = True) -> dict:
+    async def new(self, name: str, main_goal: str | None = None, save_current: bool = True, owner: str | None = None) -> dict:
         """Start from scratch (factory state) as a new, named project; the previous one is optionally saved first."""
         async with self._lock:
             name = _clean(name)
@@ -184,6 +184,8 @@ class Projects:
                 await self._save(None)
             await self.b.reset()
             self.b.db.kv_set(NAME_KEY, name)
+            if owner and owner.strip():
+                await self.b.set_owner(owner)
             if main_goal and main_goal.strip():
                 await self.b.set_main_goal(main_goal.strip(), True)
             return await self._save(name)

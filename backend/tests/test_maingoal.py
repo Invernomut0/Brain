@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 from brain.api import create_app
 from brain.config import ROOT_GOAL
 from brain.core import Brain
+from brain.selfmodel import DEFAULT_MODEL
 
 NEW_GOAL = "Learn to compose generative music and publish a track every week."
 
@@ -15,6 +16,7 @@ async def test_main_goal_can_be_changed_and_cancels_the_old_queue(brain):
     pending = [await brain.goals.add(f"g{i}", "", root) for i in range(2)]
     done = await brain.goals.add("done", "", root)
     await brain.goals.set_status(done, "done", "ok")
+    await brain.selfmodel.update({"hypotheses": ["maybe I am conscious"]})
 
     res = await brain.set_main_goal(NEW_GOAL, archive_pending=True)
 
@@ -24,7 +26,9 @@ async def test_main_goal_can_be_changed_and_cancels_the_old_queue(brain):
     assert [brain.goals.get(g)["status"] for g in pending] == ["cancelled", "cancelled"]
     assert brain.goals.get(done)["status"] == "done"
     assert brain.goals.pending() == []
-    assert brain.selfmodel.get()["purpose"] == NEW_GOAL
+    sm = brain.selfmodel.get()
+    assert sm["purpose"] and sm["purpose"] != DEFAULT_MODEL["purpose"] and len(sm["purpose"]) <= 300
+    assert sm["open_questions"] and sm["open_questions"] != DEFAULT_MODEL["open_questions"] and sm["hypotheses"] == []
     assert any("main goal" in j["text"] for j in brain.memory.journal_recent())
 
 
@@ -43,7 +47,7 @@ async def test_too_short_goal_is_rejected(brain):
 
 async def test_the_planner_prompt_points_to_the_editable_goal(brain):
     text = brain.evolution.prompt("planner")
-    assert "ROOT GOAL chosen by Lorenzo" in text
+    assert "ROOT GOAL chosen by the owner" in text
 
 
 def test_api_main_goal_and_no_autostart(settings):

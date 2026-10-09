@@ -14,7 +14,7 @@ import { Halo } from './neural/Glow'
 import { AgentNode, CoreNode, Satellite, type SatKind } from './neural/Nodes'
 
 const SATELLITES: { id: string; kind: SatKind; label: string; color: string; pos: [number, number, number] }[] = [
-  { id: 'user', kind: 'user', label: 'Lorenzo', color: '#ffe9b0', pos: [-13, 3, 2] },
+  { id: 'user', kind: 'user', label: 'Owner', color: '#ffe9b0', pos: [-13, 3, 2] },
   { id: 'internet', kind: 'internet', label: 'Internet', color: '#22d3ee', pos: [13, 3, -2] },
   { id: 'sandbox', kind: 'sandbox', label: 'Sandbox · Podman', color: '#ffb020', pos: [3, -4.5, 11] },
   { id: 'memory', kind: 'memory', label: 'Memory', color: '#60a5fa', pos: [-3, 6.5, -11] },
@@ -49,6 +49,7 @@ function layout(agents: AgentView[], all: Record<string, AgentView>, tools: stri
 function Scene() {
   const agentsMap = useBrain((s) => s.agents)
   const customTools = useBrain((s) => s.customTools)
+  const owner = useBrain((s) => s.owner)
   const now = useNow(1000)
   const agents = Object.values(agentsMap).filter((a) => !a.endedAt || now - a.endedAt < 12000)
   const toolNames = customTools.filter((t) => t.status === 'active').map((t) => t.name)
@@ -73,7 +74,7 @@ function Scene() {
 
       {SATELLITES.map((s) => (
         <group key={s.id}>
-          <Satellite id={s.id} kind={s.kind} label={s.label} color={s.color} />
+          <Satellite id={s.id} kind={s.kind} label={s.id === 'user' && owner ? owner : s.label} color={s.color} />
           <Edge from="core" to={s.id} color={s.color} boost={nodeBoost(s.id)} />
         </group>
       ))}

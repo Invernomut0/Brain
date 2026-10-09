@@ -8,7 +8,7 @@ interface P { x: number; y: number }
 
 const FIXED: Record<string, { p: P; color: string; label: string }> = {
   core: { p: { x: 0, y: 0 }, color: '#8b7bff', label: 'MIND' },
-  user: { p: { x: -390, y: -50 }, color: '#ffe9b0', label: 'Lorenzo' },
+  user: { p: { x: -390, y: -50 }, color: '#ffe9b0', label: 'Owner' },
   internet: { p: { x: 390, y: -50 }, color: '#22d3ee', label: 'Internet' },
   sandbox: { p: { x: 70, y: 235 }, color: '#ffb020', label: 'Sandbox · Podman' },
   memory: { p: { x: -70, y: -235 }, color: '#60a5fa', label: 'Memory' },
@@ -52,6 +52,7 @@ export function Neural2D() {
   const aw = useBrain((s) => s.metrics.awareness_index)
   const busy = useBrain((s) => s.sys.llm_busy)
   const inset = useBrain((s) => s.thoughtsInset)
+  const owner = useBrain((s) => s.owner)
   const now = useNow(500)
 
   const agents = useMemo(() => Object.values(agentsMap).filter((a) => !a.endedAt || now - a.endedAt < 12000), [agentsMap, now])
@@ -108,7 +109,7 @@ export function Neural2D() {
       </g>
 
       {Object.entries(FIXED).filter(([id]) => id !== 'core').map(([id, f]) => (
-        <Satellite key={id} id={id} p={f.p} color={f.color} label={f.label} glow={glowOf(activity, id)} />
+        <Satellite key={id} id={id} p={f.p} color={f.color} label={id === 'user' && owner ? owner : f.label} glow={glowOf(activity, id)} />
       ))}
       {tools.map((t) => <Satellite key={t} id={`tool:${t}`} p={pos.get(`tool:${t}`) as P} color="#ffb020" label={t} glow={glowOf(activity, `tool:${t}`)} />)}
 

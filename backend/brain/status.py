@@ -17,7 +17,7 @@ LINES = 5
 
 PROMPT = """You are Brain and you are taking an honest look at your own status. Use ONLY the data provided, do not make things up.
 Reply ONLY with a JSON object:
-{"lines": [5 strings, one per line, each max 140 characters, telling Lorenzo about the project: where you started, what you did, what works, what does not work, what you will do next],
+{"lines": [5 strings, one per line, each max 140 characters, telling the project owner about the project: where you started, what you did, what works, what does not work, what you will do next],
  "progress": number 0-100 = your honest estimate of the progress toward the MAIN GOAL (not the number of tasks done),
  "done": [3-5 concrete results already obtained],
  "missing": [3-5 concrete steps still missing to reach the goal]}

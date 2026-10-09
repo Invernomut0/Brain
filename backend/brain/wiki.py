@@ -62,7 +62,7 @@ STALE_DAYS = 14
 SCHEMA = """# Brain wiki schema
 
 This wiki is written and maintained by Brain ("LLM Wiki" pattern): knowledge is compiled once and kept current,
-not rebuilt for every question. Lorenzo reads it (Obsidian works too); Brain writes it.
+not rebuilt for every question. The owner reads it (Obsidian works too); Brain writes it.
 
 ## Layers
 - **Raw sources**: Brain's database (events, memories, journal, goals, tools). The wiki reads them, never modifies them.
@@ -84,7 +84,7 @@ Every page is `folder/slug.md` with frontmatter:
 
 - `managed: auto`: page regenerated from the database (status, lessons, evolution, self-model, episodes, tools): do not edit it by hand.
 - `managed: llm`: page written by the librarian (concepts, entities, insights, decisions, phases, notes).
-- `managed: user`: Lorenzo's own page: Brain reads and indexes it but never overwrites it.
+- `managed: user`: the owner's own page: Brain reads and indexes it but never overwrites it.
 - Link with `[[folder/slug]]` (or `[[Title]]`). Every page must link at least one other; links to missing pages are "wanted pages".
 - A **phase** (`phases/`) is a period or turning point of the journey: date, what changed, why it matters.
 - Contradictions are flagged with a line starting with `⚠ Contradiction:` (old and new version).
@@ -731,7 +731,7 @@ class Wiki:
             pid = f"{FOLDERS[type_]}/{slugify(title)}"
         row = self.b.db.one("SELECT managed FROM wiki_pages WHERE id=?", (pid,))
         if row and row["managed"] == "user":
-            return None  # never overwrite Lorenzo's own pages
+            return None  # never overwrite the owner's own pages
         old = []
         if row and self._path(pid).exists():
             old = _list(_parse(self._path(pid).read_text(errors="replace"))[0].get("sources", ""))

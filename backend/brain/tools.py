@@ -202,11 +202,12 @@ async def wiki_note(ctx: ToolContext, title: str, body: str, summary: str = ""):
 
 async def ask_user(ctx: ToolContext, message: str, wait: int = 120):
     reply = await ctx.brain.orchestrator.ask(ctx.agent, message, min(max(int(wait), 0), 300))
+    o = ctx.brain.owner
     if reply is not None:
-        return f"Lorenzo's reply: {reply}"
+        return f"{o}'s reply: {reply}"
     return (
-        "Message sent but Lorenzo has not replied (yet): proceed autonomously with reasonable assumptions, "
-        "state them in the summary; if he replies later you will receive a [Lorenzo] message or the goal will be reopened."
+        f"Message sent but {o} has not replied (yet): proceed autonomously with reasonable assumptions, "
+        f"state them in the summary; if they reply later you will receive a [{o}] message or the goal will be reopened."
     )
 
 
@@ -274,7 +275,7 @@ def _builtin_tools() -> list[Tool]:
         T("wiki_search", "search Brain's wiki (already compiled knowledge: concepts, phases, decisions, episodes, tools); returns id, title, summary", {"query": "str", "k": "int=5"}, wiki_search),
         T("wiki_read", "read a wiki page given its id (e.g. 'concepts/sqlite')", {"id": "str"}, wiki_read),
         T("wiki_note", "file a useful answer or discovery in the wiki (permanent note, linkable with [[id]])", {"title": "str", "body": "markdown", "summary": "str?"}, wiki_note),
-        T("ask_user", "write to Lorenzo in the chat and WAIT for his reply (wait seconds, default 120, max 300, 0 = do not wait); returns the reply or a no-reply notice", {"message": "str", "wait": "int=120"}, ask_user),
+        T("ask_user", "write to the owner in the chat and WAIT for their reply (wait seconds, default 120, max 300, 0 = do not wait); returns the reply or a no-reply notice", {"message": "str", "wait": "int=120"}, ask_user),
         T("send_message", "send a message to another live agent", {"to": "agent_id", "text": "str"}, send_message),
         T("spawn_agent", "create a sub-agent with a role and wait for its result", {"role": "str", "task": "str", "system_prompt": "str? (custom role)"}, spawn_agent),
         T("spawn_parallel", "launch up to 4 sub-agents IN PARALLEL and wait for all the results", {"tasks": "list of {role, task, system_prompt?}"}, spawn_parallel),

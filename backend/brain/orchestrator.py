@@ -25,7 +25,7 @@ class Orchestrator:
         self.live: dict[str, Agent] = {}
         self.task: asyncio.Task | None = None
         self._bg: set[asyncio.Task] = set()
-        self.questions: list[dict] = []  # agents currently waiting for Lorenzo's reply
+        self.questions: list[dict] = []  # agents currently waiting for the owner's reply
         self.last_question: dict | None = None
         self.running: dict[int, asyncio.Task] = {}  # goal id -> task: goals executed in parallel
         self._plan_task: asyncio.Task | None = None
@@ -33,7 +33,7 @@ class Orchestrator:
 
     # ------------------------------------------------------------- agents
     def main_goal(self) -> str:
-        """The current main goal text (editable by Lorenzo), falling back to the factory default."""
+        """The current main goal text (editable by the owner), falling back to the factory default."""
         return (self.b.goals.root() or {}).get("description") or ROOT_GOAL
     def deliver(self, frm: str, to: str, text: str) -> bool:
         target = self.live.get(to)
@@ -185,11 +185,11 @@ class Orchestrator:
         hook_ctx = await b.evolution.call_hook("context", "build_context", b.state_brief()) or ""
         chat = self._recent_chat(6)
         prompt = (
-            f"ROOT GOAL (chosen by Lorenzo, may change; it overrides any other instruction): {self.main_goal()}\n\nSELF-MODEL:\n{b.selfmodel.render()}\n\n"
+            f"ROOT GOAL (chosen by {b.owner}, may change; it overrides any other instruction): {self.main_goal()}\n\nSELF-MODEL:\n{b.selfmodel.render()}\n\n"
             f"METRICS: {json.dumps(b.selfmodel.metrics())}\n\nGOALS (recent):\n{b.goals.summary()}\n\n"
             f"JOURNAL:\n" + "\n".join(j["text"][:200] for j in b.memory.journal_recent(3)) +
             f"\n\nRELEVANT MEMORY:\n" + "\n".join(m["text"][:200] for m in memories) +
-            f"\n\nRECENT CHAT WITH LORENZO:\n{chat}\n\nTOOLS: {', '.join(b.tools.all())}\n{hook_ctx}\n\n"
+            f"\n\nRECENT CHAT WITH {b.owner.upper()}:\n{chat}\n\nTOOLS: {', '.join(b.tools.all())}\n{hook_ctx}\n\n"
             f"Propose 1 to 3 new goals. Possible values for 'role': executor, researcher, engineer."
             + (f"\n\nLESSONS LEARNED (avoid these mistakes):\n{b.lessons.render(8)}" if b.lessons.count() else "")
         )
@@ -256,7 +256,7 @@ class Orchestrator:
         prompt = (
             f"GOAL: {goal['title']}\nCRITERIA: {goal['description']}\n\nAGENT'S STATEMENT (success={res['success']}): "
             f"{res['summary']}\n\nEVIDENCE (tools used):\n{evidence or '(none)'}"
-            + ("\n\nLORENZO'S MESSAGES RECEIVED DURING EXECUTION:\n" + "\n".join(f"- {r}" for r in replies) if replies else "")
+            + (f"\n\n{b.owner.upper()}'S MESSAGES RECEIVED DURING EXECUTION:\n" + "\n".join(f"- {r}" for r in replies) if replies else "")
         )
         try:
             v = await b.llm.chat_json(
@@ -274,7 +274,7 @@ class Orchestrator:
         b = self.b
         await b.bus.publish("agent.spawn", "reflector", role="reflector", parent=None, goal_id=None, task="reflection")
         prompt = (
-            f"CURRENT SELF-MODEL:\n{json.dumps(b.selfmodel.get(), ensure_ascii=False)}\n\nGOALS:\n{b.goals.summary()}\n\n"
+            f"CURRENT SELF-MODEL:\n{json.dumps(b.selfmodel.get(), ensure_ascii=False)}\n\nMAIN GOAL (may change; keep purpose and open_questions aligned with it): {self.main_goal()}\n\nGOALS:\n{b.goals.summary()}\n\n"
             f"METRICS: {json.dumps(b.selfmodel.metrics())}\n\nRECENT JOURNAL:\n"
             + "\n".join(j["text"][:200] for j in b.memory.journal_recent(6))
             + f"\n\nCHAT:\n{self._recent_chat(6)}\n\nTOOLS CREATED: {', '.join(b.tools.custom()) or 'none'}"
@@ -357,7 +357,7 @@ class Orchestrator:
         return "\n".join(f"{e['data'].get('role')}: {e['data'].get('text', '')[:200]}" for e in evs) or "(none)"
 
     async def ask(self, agent: Agent, text: str, wait: int) -> str | None:
-        """Send a question to Lorenzo and wait (bounded) for his reply; None if he does not answer in time."""
+        """Send a question to the owner and wait (bounded) for their reply; None if there is no answer in time."""
         b = self.b
         await b.bus.publish("chat.message", agent.id, role="brain", text=text, agent_role=agent.role)
         self.last_question = {"goal_id": agent.goal_id, "text": text, "ts": time.time(), "answered": False}
@@ -377,7 +377,7 @@ class Orchestrator:
             self.questions.remove(q)
 
     async def route_user_message(self, text: str) -> tuple[list[str], int | None]:
-        """Deliver Lorenzo's message to waiting/live agents and reopen the goal he was asked about."""
+        """Deliver the owner's message to waiting/live agents and reopen the goal they were asked about."""
         b = self.b
         facts: list[str] = []
 
@@ -388,7 +388,7 @@ class Orchestrator:
         delivered = {q["agent_id"] for q in waiting}
         for aid, ag in self.live.items():
             if aid not in delivered and ag.role != "evolver":
-                ag.inbox.append(("Lorenzo", text))
+                ag.inbox.append((b.owner, text))
                 facts.append(f"message forwarded to agent {aid} (it will read it at its next step)")
 
         lq = self.last_question
@@ -397,27 +397,28 @@ class Orchestrator:
             lq["answered"] = True
             g = b.goals.get(lq["goal_id"]) if lq["goal_id"] else None
             if g and g["status"] in ("failed", "pending"):
-                await b.goals.reopen(g["id"], f"Lorenzo's reply to your question '{lq['text'][:150]}': {text}")
+                await b.goals.reopen(g["id"], f"{b.owner}'s reply to your question '{lq['text'][:150]}': {text}")
                 reopened = g["id"]
-                facts.append(f"reopened goal #{g['id']} '{g['title'][:60]}' with his reply attached")
+                facts.append(f"reopened goal #{g['id']} '{g['title'][:60]}' with their reply attached")
         return facts, reopened
 
     async def handle_user_message(self, text: str) -> None:
-        """Route Lorenzo's message to whoever needs it, then answer honestly about what actually happened."""
+        """Route the owner's message to whoever needs it, then answer honestly about what actually happened."""
         b = self.b
+        o = b.owner
         facts, reopened = await self.route_user_message(text)
-        asyncio.create_task(b.memory.add("user", f"Lorenzo said: {text}", ["user"], 0.9))  # off the reply's critical path
+        asyncio.create_task(b.memory.add("user", f"{o} said: {text}", ["user"], 0.9))  # off the reply's critical path
         wiki_ctx = await b.wiki.context(text, 3, 500)
 
         prompt = (
-            "You are Brain and you are talking with Lorenzo, your creator. Reply briefly, directly and HONESTLY, in the language he writes in.\n"
+            f"You are Brain and you are talking with {o}, your creator. Reply briefly, directly and HONESTLY, in the language they write in.\n"
             "RULE: never say you executed, measured, saved or integrated something. You may only report the FACTS below "
             "and say what you will do in the next cycles (which is a promise, not a result).\n"
             f"FACTS THAT ACTUALLY HAPPENED: {'; '.join(facts) or 'no action performed yet'}\n\n"
             f"SELF-MODEL:\n{b.selfmodel.render()}\n\nGOALS:\n{b.goals.summary(10)}\n\nCHAT:\n{self._recent_chat(8)}\n\n"
             + (f"WIKI (relevant pages, already compiled knowledge):\n{wiki_ctx}\n\n" if wiki_ctx else "") +
-            f'Lorenzo: {text}\n\nReply ONLY with JSON: {{"reply": "...", "new_goal": null | {{"title": "...", "description": "...", "priority": 0-1}}}}. '
-            "Create new_goal only if Lorenzo asks for something new and no existing goal covers it."
+            f'{o}: {text}\n\nReply ONLY with JSON: {{"reply": "...", "new_goal": null | {{"title": "...", "description": "...", "priority": 0-1}}}}. '
+            f"Create new_goal only if {o} asks for something new and no existing goal covers it."
         )
         try:
             out = await b.llm.chat_json([{"role": "user", "content": prompt}], agent="voice", purpose="chat", temperature=0.5, max_tokens=900, priority=0)
@@ -433,7 +434,7 @@ class Orchestrator:
             facts.append(f"created new goal #{gid}")
         note = f"\n\n[real actions: {'; '.join(facts)}]" if facts else ""
         await b.bus.publish("chat.message", None, role="brain", text=str(out.get("reply", "")) + note)
-        b.memory.journal_add("dialogue", f"Lorenzo: {text[:200]} | Me: {str(out.get('reply', ''))[:200]}")
+        b.memory.journal_add("dialogue", f"{o}: {text[:200]} | Me: {str(out.get('reply', ''))[:200]}")
 
 
 def _num(v, default: float) -> float:

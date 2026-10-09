@@ -15,15 +15,17 @@ from .db import Database
 from .evolution import Evolution
 from .goals import GoalStore
 from .lessons import Lessons
-from .llm import LLMClient
+from .llm import LLMClient, LLMError
 from .memory import Memory
 from .orchestrator import Orchestrator
 from .projects import Projects
 from .sandbox import Sandbox
-from .selfmodel import SelfModel
+from .selfmodel import DEFAULT_MODEL, SelfModel
 from .status import StatusReport
 from .wiki import Wiki
 from .tools import ToolRegistry
+
+OWNER_KEY = "owner_name"
 
 
 class Brain:
@@ -71,11 +73,63 @@ class Brain:
         if not 10 <= len(text) <= 2000:
             raise ValueError("main goal must be 10-2000 characters")
         root = await self.goals.set_main(text, archive_pending)
-        await self.selfmodel.update({"purpose": text[:300]})
-        self.memory.journal_add("goal", f"Lorenzo changed the main goal: {text[:300]}")
-        await self.memory.add("user", f"New main goal decided by Lorenzo: {text}", ["user", "goal"], 1.0)
+        await self._realign_selfmodel(text)
+        self.memory.journal_add("goal", f"{self.owner} changed the main goal: {text[:300]}")
+        await self.memory.add("user", f"New main goal decided by {self.owner}: {text}", ["user", "goal"], 1.0)
         await self.bus.publish("goal.main_changed", None, text=text[:300], cancelled=root["cancelled"])
         return root
+
+    async def _realign_selfmodel(self, goal: str) -> None:
+        """Purpose, open questions and hypotheses were written for the old goal: rewrite them for the new one."""
+        old = self.selfmodel.get()
+        patch: dict = {"purpose": goal[:300], "open_questions": [], "hypotheses": []}
+        try:
+            out = await asyncio.wait_for(self.llm.chat_json(
+                [{"role": "system", "content": (
+                    "You maintain Brain's self-model. Its main goal just changed, so the purpose and open questions written for the "
+                    "old goal are obsolete. Reply ONLY with JSON {\"purpose\": \"...\", \"open_questions\": [\"...\"]}. "
+                    "purpose: first person, max 300 characters, faithful to the new goal, nothing invented. "
+                    "open_questions: 3 to 5 concrete questions Brain must answer to achieve the new goal.")},
+                 {"role": "user", "content": (
+                    f"OLD PURPOSE: {old['purpose']}\nOLD OPEN QUESTIONS: {'; '.join(map(str, old['open_questions']))}\n\n"
+                    f"NEW MAIN GOAL (chosen by {self.owner}): {goal}")}],
+                agent="reflector", purpose="realign self-model", temperature=0.3, max_tokens=500,
+            ), 90)
+            purpose = str(out.get("purpose") or "").strip()
+            questions = [str(q).strip()[:200] for q in (out.get("open_questions") or []) if str(q).strip()][:5]
+            if purpose:
+                patch["purpose"] = purpose[:300]
+            if questions:
+                patch["open_questions"] = questions
+        except (LLMError, asyncio.TimeoutError):
+            pass  # keep the deterministic fallback: the new goal as purpose, stale questions dropped
+        await self.selfmodel.update(patch)
+
+    # ---------------------------------------------------------- owner
+    @property
+    def owner_name(self) -> str:
+        """Who Brain works for: asked in the dashboard, stored with the project (empty until given)."""
+        return self.db.kv_get(OWNER_KEY) or ""
+
+    @property
+    def owner(self) -> str:
+        """The owner as written inside prompts and messages."""
+        return self.owner_name or "the owner"
+
+    async def set_owner(self, name: str) -> str:
+        name = " ".join(str(name).split())[:60]
+        if not name:
+            raise ValueError("owner name is required")
+        old = self.owner_name
+        self.db.kv_set(OWNER_KEY, name)
+        about = self.selfmodel.get()["about_user"]
+        if old and old in about:
+            about = about.replace(old, name)
+        elif about == DEFAULT_MODEL["about_user"]:
+            about = f"{name} is my creator and the only human I talk to; they can read me from the chat."
+        await self.selfmodel.update({"about_user": about})
+        await self.bus.publish("owner.changed", None, name=name)
+        return name
 
     async def reset(self) -> None:
         """Back to a brand-new installation: database, sandbox workspace (incl. tools), prompts, hooks, counters."""
@@ -195,6 +249,7 @@ class Brain:
     def snapshot(self) -> dict:
         return {
             "project": self.projects.current(),
+            "owner": self.owner_name,
             "control": self.control.snapshot(),
             "goals": self.goals.all(),
             "agents": self._agents_snapshot(),

@@ -26,9 +26,9 @@ export const api = {
   chat: (text: string) => post('/chat', { text }),
   reset: () => post('/reset', { confirm: 'RESET' }),
   setMainGoal: (text: string, archive_pending: boolean) => put<{ cancelled: number }>('/main-goal', { text, archive_pending }),
-  projects: () => call<{ current: ProjectInfo; items: ProjectMeta[] }>('GET', '/projects'),
-  saveProject: (name?: string) => post<ProjectMeta>('/projects/save', { name: name || null }),
+  projects: () => call<{ current: ProjectInfo; items: ProjectMeta[] }>('GET', '/projects'),  saveProject: (name?: string) => post<ProjectMeta>('/projects/save', { name: name || null }),
   loadProject: (id: string, save_current: boolean) => post<ProjectMeta>(`/projects/${encodeURIComponent(id)}/load`, { save_current }),
-  newProject: (name: string, main_goal: string, save_current: boolean) => post<ProjectMeta>('/projects/new', { name, main_goal: main_goal.trim() || null, save_current }),
+  newProject: (name: string, main_goal: string, save_current: boolean, owner: string) => post<ProjectMeta>('/projects/new', { name, main_goal: main_goal.trim() || null, save_current, owner: owner.trim() || null }),
+  setOwner: (name: string) => put<{ name: string }>('/owner', { name }),
   deleteProject: (id: string) => call<{ deleted: string }>('DELETE', `/projects/${encodeURIComponent(id)}`),
 }

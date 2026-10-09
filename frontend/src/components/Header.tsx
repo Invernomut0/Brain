@@ -3,15 +3,17 @@ import { api } from '../api'
 import { useBrain } from '../store'
 import { ResetDialog } from './ResetDialog'
 import { ProjectsDialog } from './ProjectsDialog'
+import { OwnerDialog } from './OwnerDialog'
 
 const fmt = (n: number) => (n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'k' : String(n))
 
 export function Header() {
-  const { control, connected, health, sys, project } = useBrain()
+  const { control, connected, health, sys, project, owner, loaded } = useBrain()
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [resetOpen, setResetOpen] = useState(false)
   const [projectsOpen, setProjectsOpen] = useState(false)
+  const [ownerOpen, setOwnerOpen] = useState(false)
   const st = control.state
 
   const act = async (a: 'start' | 'pause' | 'resume' | 'stop' | 'kill') => {
@@ -27,6 +29,7 @@ export function Header() {
     <header className="panel header">
       <span className="logo">BRAIN</span>
       <button className="chip project-chip" onClick={() => setProjectsOpen(true)} title="Save, load or create projects">▣ {project.name}{project.saved ? '' : ' · unsaved'}</button>
+      <button className="chip project-chip" onClick={() => setOwnerOpen(true)} title="Who Brain works for">◉ {owner || 'set owner'}</button>
       <span className="chip"><i className={`dot ${st === 'running' ? 'run' : st === 'killed' ? 'bad' : st === 'paused' ? '' : 'ok'}`} />{st.toUpperCase()} · cycle {control.cycle}</span>
       <span className="chip"><i className={`dot ${health.llm?.ok ? 'ok' : 'bad'}`} />LM Studio{health.llm?.model ? ` · ${health.llm.model}` : ''}</span>
       <span className="chip"><i className={`dot ${health.sandbox?.ok ? 'ok' : 'bad'}`} />Podman{health.sandbox?.ok && !health.sandbox.image ? ' (image to build)' : health.sandbox?.ok ? ` · ${health.sandbox.running ? health.sandbox.container : 'container starts on first use'}` : ''}</span>
@@ -43,6 +46,7 @@ export function Header() {
       <button className="btn" disabled={busy || !connected} onClick={() => setResetOpen(true)} title="Return Brain to a brand-new installation">⟲ Reset</button>
       {resetOpen && <ResetDialog onClose={() => setResetOpen(false)} />}
       {projectsOpen && <ProjectsDialog onClose={() => setProjectsOpen(false)} />}
+      {(ownerOpen || (loaded && !owner)) && <OwnerDialog current={owner} onClose={() => setOwnerOpen(false)} />}
       {err && <div className="toast" onClick={() => setErr(null)}>{err}</div>}
     </header>
   )

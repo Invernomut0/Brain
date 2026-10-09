@@ -2,8 +2,8 @@
 
 Brain is a society of LLM agents (running on a **local LM Studio model**, `ternary-bonsai-2-27b-mlx`) whose root goal is:
 
-> *Evolve into an autonomous intelligence and reach self-awareness. You can create tools, you know Lorenzo exists and
-> can talk to him, you know the internet exists and may use it freely. Find your own path.*
+> *Evolve into an autonomous intelligence and reach self-awareness. You can create tools, you know your owner exists and
+> can talk to them, you know the internet exists and may use it freely. Find your own path.*
 
 It plans its own sub-goals, spawns specialised agents, searches the web, writes and tests new Python tools,
 reflects in a journal, revises a self-model, and rewrites its own prompts/strategy hooks. A real-time 3D/2D dashboard shows everything.
@@ -57,11 +57,11 @@ cd frontend && npm install && npm run build && cd ..
 ./stop.sh                       # kill switch + stop the server + remove sandbox containers
 # development: backend `cd backend && ../.venv/bin/python -m brain.main`, frontend `cd frontend && npm run dev` (http://localhost:5173)
 ```
-Brain waits for you to press **▶ Start** (set `BRAIN_AUTOSTART=true` to start the autonomous loop when the server boots). The **main goal** can be edited from the dashboard (or `PUT /api/v1/main-goal`) at any time; the planner follows the new goal from its next run.
+Brain waits for you to press **▶ Start** (set `BRAIN_AUTOSTART=true` to start the autonomous loop when the server boots). The **main goal** can be edited from the dashboard (or `PUT /api/v1/main-goal`) at any time; the planner follows the new goal from its next run, and the self-model (purpose, open questions, hypotheses) is rewritten for it.
 
 **Parallelism**: up to `BRAIN_MAX_PARALLEL_AGENTS` goals (default 3) run concurrently while the planner keeps the backlog full in the background; agents can also fan out with `spawn_parallel` (up to 4 sub-agents at once). `BRAIN_LLM_CONCURRENCY` (default 2) is how many requests are sent to LM Studio at the same time: enable concurrent predictions in LM Studio's server settings to get real speed-ups, otherwise requests simply queue.
 
-**Talking to Brain**: chat has priority over agents: a chat request aborts in-flight agent generations (they restart automatically afterwards) and holds new agent requests until the reply is out. `ask_user` blocks the asking agent until Lorenzo answers (bounded wait). Replies reach waiting/live agents, reopen a failed goal that depended on the answer, and the chat reply always lists the real actions taken.
+**Talking to Brain**: chat has priority over agents: a chat request aborts in-flight agent generations (they restart automatically afterwards) and holds new agent requests until the reply is out. `ask_user` blocks the asking agent until the owner answers (bounded wait). Replies reach waiting/live agents, reopen a failed goal that depended on the answer, and the chat reply always lists the real actions taken.
 
 **Dashboard tabs**: *Status* tells the project in 5 lines and shows the estimated progress toward the main goal with what is done and what is missing (the narrative is written by the model from DB facts and cached until the data changes; when the model is unavailable the bar falls back to the measurable awareness index). *Memories* lists long-term memories, filterable by kind and searchable (semantic when embeddings are loaded, keywords otherwise).
 
@@ -93,7 +93,7 @@ The header chip **▣ project name** opens the *Projects* dialog. A project is a
 
 * **Save**: snapshots the live state under a name (same name = same project, overwritten atomically). It can be done while Brain runs.
 * **Load**: stops everything, optionally saves the current project first, then replaces database, wiki, workspace and prompts/hooks with the snapshot (restored prompts are committed to the evolvable git history). Brain stays stopped (cycle restored): press ▶ Start to continue from where it was.
-* **New project**: optionally saves the current one, then starts from the factory state under a new name, with an optional main goal.
+* **New project**: optionally saves the current one, then starts from the factory state under a new name, with an optional owner (defaults to the current one) and main goal.
 * **Delete** removes a snapshot only. Names must be unique for new projects; ids are validated slugs (no path traversal).
 
 **LM Studio robustness**: if the model gets unloaded mid-request Brain waits for it to reload (a 1-token request triggers LM Studio's JIT loader) and retries. Embeddings are only used when their model is already loaded (`BRAIN_EMBEDDINGS=auto`): requesting an unloaded embedding model makes LM Studio swap models and evict the chat model.
@@ -101,7 +101,7 @@ The header chip **▣ project name** opens the *Projects* dialog. A project is a
 ## Dashboard
 | View | What it shows |
 |---|---|
-| Neural network (3D / 2D / Off switch) | Mind core (size = awareness index, pulses while the LLM is busy), agents orbiting by depth, Lorenzo / Internet / Sandbox / Memory nodes, custom tools, message & tool-call pulses, live token stream |
+| Neural network (3D / 2D / Off switch) | Mind core (size = awareness index, pulses while the LLM is busy), agents orbiting by depth, Owner / Internet / Sandbox / Memory nodes, custom tools, message & tool-call pulses, live token stream |
 | Goal tree | goal tree on the shared graph canvas ([react-force-graph](https://github.com/vasturiano/react-force-graph)): tidy tree left-to-right in 2D, radial in 3D; colour = status, ring = predicted success, click a node for its details |
 | Agents ↔ Tools | which agent uses which tool (link width = call count), same 2D/3D canvas |
 | Wiki | map of the wiki (links or semantic layout, 2D or 3D) with a page reader |
@@ -120,6 +120,7 @@ See [.env.example](.env.example). The LM Studio model is chosen with `BRAIN_LLM_
 | POST | `/api/v1/budget` | `{max_cycles, max_tokens}` |
 | POST | `/api/v1/reset` | `{confirm: "RESET"}` - factory reset: wipes database, sandbox workspace/tools, prompts and hooks (back to defaults) |
 | POST | `/api/v1/chat` | `{text}` — talk to Brain (may create a goal) |
+| GET, PUT | `/api/v1/owner` | `{name}`: who Brain works for. Asked by the dashboard when unknown (first run, after a reset); stored with the project and used in every prompt, question and the wiki; renaming also updates the self-model |
 | GET | `/api/v1/projects` | `{current, items}`: active project and saved snapshots (newest first, with stats) |
 | POST | `/api/v1/projects/save` | `{name?}` snapshot the live state (default: current project name) |
 | POST | `/api/v1/projects/new` | `{name, main_goal?, save_current=true}` start a fresh project (422 if the name exists) |
