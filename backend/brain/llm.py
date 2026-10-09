@@ -147,6 +147,7 @@ class LLMClient:
         self._gate = _Gate(settings.llm_concurrency)
         self._active: set[_Call] = set()
         self._embed_ok: tuple[float, bool] = (0.0, False)
+        self._embed_busy = 0
         self._http = httpx.AsyncClient(base_url=settings.llm_url, timeout=httpx.Timeout(600, connect=5))
 
     async def close(self) -> None:
@@ -429,11 +430,32 @@ class LLMClient:
         """Vectors from BRAIN_EMBED_MODEL. `force` skips the loaded-model guard (LM Studio may then load it just-in-time)."""
         if not force and not await self.embeddings_available():
             raise LLMError("embeddings model not loaded: skipped to avoid swapping models in LM Studio")
+        await self._embedder_start(len(texts))
+        ok = False
         try:
             r = await self._http.post("/embeddings", json={"model": self.s.embed_model, "input": texts}, timeout=120 if force else 60)
             r.raise_for_status()
             out = [d["embedding"] for d in sorted(r.json()["data"], key=lambda d: d["index"])]
+            ok = True
         except (httpx.HTTPError, KeyError, ValueError) as e:
             raise LLMError(f"embeddings request failed: {str(e)[:200]}") from e
+        finally:
+            await self._embedder_end(ok, len(texts))
         self._embed_ok = (time.time(), True)
         return out
+
+    async def _embedder_start(self, n: int) -> None:
+        """Embedding calls show up as one agent while any is in flight (many small calls would flicker otherwise)."""
+        self._embed_busy += 1
+        if self._embed_busy == 1:
+            await self.bus.publish("agent.spawn", "embedder", role="embedding", parent=None, goal_id=None, task="vectorise text")
+        await self.bus.publish("agent.state", "embedder", state="acting", detail="embedding")
+        await self.bus.publish("agent.thought", "embedder", action="embed", thought=f"vectorising {n} text(s) with {self.s.embed_model}")
+
+    async def _embedder_end(self, ok: bool, n: int) -> None:
+        self._embed_busy = max(0, self._embed_busy - 1)
+        if self._embed_busy == 0:
+            await self.bus.publish(
+                "agent.end", "embedder", success=ok, steps=1,
+                summary=f"{n} text(s) vectorised" if ok else "embedding request failed",
+            )

@@ -421,10 +421,13 @@ class Orchestrator:
             f"Create new_goal only if {o} asks for something new and no existing goal covers it."
         )
         try:
+            await b.bus.publish("agent.spawn", "voice", role="chat", parent=None, goal_id=None, task="reply to " + o)
             out = await b.llm.chat_json([{"role": "user", "content": prompt}], agent="voice", purpose="chat", temperature=0.5, max_tokens=900, priority=0)
         except LLMError as e:
+            await b.bus.publish("agent.end", "voice", success=False, summary=str(e)[:200], steps=1)
             await b.bus.publish("chat.message", None, role="brain", text=f"(I cannot reply: {e})")
             return
+        await b.bus.publish("agent.end", "voice", success=True, summary=str(out.get("reply", ""))[:300], steps=1)
         ng = out.get("new_goal")
         if isinstance(ng, dict) and ng.get("title") and not reopened:
             gid = await b.goals.add(

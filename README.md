@@ -112,7 +112,7 @@ The header chip **▣ project name** opens the *Projects* dialog. A project is a
 | Agents ↔ Tools | which agent uses which tool (link width = call count), same 2D/3D canvas |
 | Wiki | map of the wiki (links or semantic layout, 2D or 3D) with a page reader |
 | Right panel | awareness gauge + calibration/introspection/success bars, LLM tok/s, CPU, RAM sparklines |
-| Left panel | live agents (only agents already streaming or acting show their text; queued, idle, finished or still waiting for the model ones collapse to the title row, click to expand) and the evolving self-model; the live thoughts panel takes half of the stage by default, the 2D view the other half |
+| Left panel | live agents (only agents already streaming or acting show their text; queued, idle, finished or still waiting for the model ones collapse to the title row, click to expand) and the evolving self-model; the live thoughts panel takes half of the stage by default, the 2D view the other half; background jobs show up as agents too: the status report (`status`), chat replies (`chat`) and embedding calls (`embedding`) |
 | Dock | live event feed, chat with Brain (the Chat tab shows a badge with the number of Brain messages waiting for your reply), project status, memories, journal, lessons, tools, evolution history |
 
 ## Configuration (`.env`)

@@ -72,9 +72,14 @@ class StatusReport:
             saved = self.b.db.kv_get(KV_KEY)
             if saved and saved.get("fingerprint") == fp:  # a concurrent caller already regenerated it
                 return {"facts": f, "report": saved, "stale": False}
+            await self.b.bus.publish("agent.spawn", "status", role="status", parent=None, goal_id=None, task="status report")
             report = await self._generate(f)
             report |= {"fingerprint": fp, "ts": time.time()}
             self.b.db.kv_set(KV_KEY, report)
+            await self.b.bus.publish(
+                "agent.end", "status", success=report["source"] == "llm", steps=1,
+                summary=(report["lines"][0] if report["lines"] else "")[:300],
+            )
             await self.b.bus.publish("status.report", None, progress=report["progress"], source=report["source"])
             return {"facts": f, "report": report, "stale": False}
 
@@ -82,7 +87,7 @@ class StatusReport:
         try:
             out = await self.b.llm.chat_json(
                 [{"role": "system", "content": PROMPT}, {"role": "user", "content": json.dumps(f, ensure_ascii=False)}],
-                purpose="status", temperature=0.3, max_tokens=900,
+                purpose="status", agent="status", temperature=0.3, max_tokens=900,
             )
             lines = [_clip(x, 200) for x in out.get("lines") or [] if str(x).strip()][:LINES]
             if len(lines) == LINES:

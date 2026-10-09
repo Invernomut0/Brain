@@ -63,3 +63,31 @@ async def test_status_report_with_real_model_then_stale_after_new_work(brain):
     assert not brain.status.current()["stale"]
     await brain.goals.add("Another goal", "", brain.goals.root()["id"])
     assert brain.status.current()["stale"]
+
+
+async def test_status_job_and_chat_reply_run_as_agents(brain):
+    await brain._bootstrap()
+    await brain.status.refresh()
+    await brain.orchestrator.handle_user_message("Hello, what are you doing?")
+    ev = brain.bus.recent(400, ["agent.spawn", "agent.end"])
+    for agent, role in (("status", "status"), ("voice", "chat")):
+        kinds = [(e["type"], e["data"].get("role")) for e in ev if e["agent"] == agent]
+        assert ("agent.spawn", role) in kinds and any(k == "agent.end" for k, _ in kinds), agent
+    spawn = next(e for e in ev if e["agent"] == "voice" and e["type"] == "agent.spawn")
+    assert spawn["data"]["name"] == brain.names.get("voice")["name"]  # named like any other agent
+
+
+async def test_embedding_calls_run_as_one_agent_while_in_flight(brain):
+    import httpx
+
+    from brain.llm import LLMError
+
+    await brain.llm._http.aclose()
+    brain.llm._http = httpx.AsyncClient(base_url="http://127.0.0.1:9/v1")  # nothing listens there: a real connection failure
+    with pytest.raises(LLMError):
+        await brain.llm.embed(["a", "b", "c"], force=True)
+    ev = [e for e in brain.bus.recent(50) if e["agent"] == "embedder"]
+    assert [e["type"] for e in ev] == ["agent.spawn", "agent.state", "agent.thought", "agent.end"]
+    assert ev[0]["data"]["role"] == "embedding" and ev[0]["data"]["name"] == brain.names.get("embedder")["name"]
+    assert "3 text(s)" in ev[2]["data"]["thought"] and ev[3]["data"]["success"] is False
+    assert brain.llm._embed_busy == 0

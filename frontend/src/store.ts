@@ -6,7 +6,7 @@ import type {
 
 export const ROLE_COLOR: Record<string, string> = {
   planner: '#8b7bff', executor: '#22d3ee', researcher: '#34f5a0', engineer: '#ffb020', critic: '#ff4d6d',
-  reflector: '#f472d0', evolver: '#fde047', voice: '#a5b4fc',
+  reflector: '#f472d0', evolver: '#fde047', voice: '#a5b4fc', chat: '#a5b4fc', status: '#2dd4bf', embedding: '#60a5fa',
 }
 export const roleColor = (r: string) => ROLE_COLOR[r] ?? '#94a3b8'
 
