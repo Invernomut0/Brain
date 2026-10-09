@@ -80,7 +80,7 @@ def create_app(brain: Brain | None = None) -> FastAPI:
         yield
         await brain.shutdown()
 
-    app = FastAPI(title="Brain", version="0.1.29", lifespan=lifespan)
+    app = FastAPI(title="Brain", version="0.1.30", lifespan=lifespan)
     app.state.brain = brain
     app.add_middleware(
         CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],

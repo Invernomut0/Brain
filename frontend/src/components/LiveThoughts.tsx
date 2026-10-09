@@ -40,7 +40,7 @@ function ThoughtCard({ a }: { a: AgentView }) {
         <i className="live-dot" />
         <b>{name ?? a.role}</b>
         <span className="live-id">{name ? a.role : a.id}</span>
-        <span className="live-mode">{thinking ? (waiting ? 'answer \u00b7 wait' : reasoning ? 'reasoning' : 'answer') : queued ? 'queued' : a.state === 'acting' ? `tool \u00b7 ${a.detail}` : a.state}</span>
+        <span className={`live-mode ${waiting ? 'wait' : ''}`}>{thinking ? (waiting ? 'answer - waiting for llm\u2026' : reasoning ? 'reasoning' : 'answer') : queued ? 'queued' : a.state === 'acting' ? `tool \u00b7 ${a.detail}` : a.state}</span>
         {thinking && tps > 0 && <span className="live-tps">{tps.toFixed(1)} tok/s</span>}
         <span className="live-chev">{open ? '\u25be' : '\u25b8'}</span>
       </div>

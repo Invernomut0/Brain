@@ -80,6 +80,11 @@ body::before {
 .live-body::-webkit-scrollbar { width: 4px; }
 .live-body::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--c) 50%, transparent); border-radius: 3px; }
 .live-wait { color: var(--dim); font-style: italic; }
+.live-mode.wait { white-space: nowrap; text-shadow: 0 0 6px var(--c); animation: live-glow 1.8s ease-in-out infinite; }
+@keyframes live-glow {
+  0%, 100% { box-shadow: 0 0 2px color-mix(in srgb, var(--c) 30%, transparent); border-color: color-mix(in srgb, var(--c) 35%, transparent); opacity: 0.75; }
+  50% { box-shadow: 0 0 12px 2px color-mix(in srgb, var(--c) 70%, transparent), inset 0 0 6px color-mix(in srgb, var(--c) 35%, transparent); border-color: var(--c); opacity: 1; }
+}
 .live.collapsed .live-body { display: none; }
 .live.collapsed .live-head { border-bottom: 0; }
 .live-stack.sized .live.collapsed { flex: 0 0 auto; }
