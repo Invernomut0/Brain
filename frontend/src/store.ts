@@ -29,7 +29,7 @@ export function toolTarget(tool: string): string {
 }
 
 /** Long agent names are cut for graph labels; lists show them in full (with CSS ellipsis). */
-export const shortName = (s: string, n = 22) => (s.length > n ? s.slice(0, n - 1) + '…' : s)
+export const shortName = (s: string, n = 26) => (s.length > n ? s.slice(0, n - 1) + '…' : s)
 
 interface Store {
   connected: boolean

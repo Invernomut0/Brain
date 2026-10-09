@@ -126,7 +126,7 @@ export function Neural2D() {
             {a.state === 'acting' && <circle r={22} fill="none" stroke={c} strokeWidth={1.5} strokeDasharray="4 6" className="n2d-spin" />}
             {a.state === 'queued' && <circle r={20} fill="none" stroke="#ffb020" strokeWidth={1.5} strokeDasharray="2 5" className="n2d-spin rev" />}
             <circle r={13} fill={c} />
-            <text y={-24} textAnchor="middle" fontSize={12} fontWeight={700} fill={c}>{shortName(names[a.id] ?? a.role)}</text>
+            <text y={-24} textAnchor="middle" fontSize={(names[a.id] ?? a.role).length > 16 ? 10 : 12} fontWeight={700} fill={c}>{shortName(names[a.id] ?? a.role)}</text>
             <text y={34} textAnchor="middle" fontSize={10} fill="#aab4e6">{a.state === 'acting' ? `▸ ${a.detail}` : a.state === 'thinking' && tps > 0 ? `${a.state} · ${tps.toFixed(0)} tok/s` : a.state}</text>
           </g>
         )

@@ -69,18 +69,18 @@ body::before {
 .live-toggle:hover { color: var(--txt); border-color: var(--violet); }
 .live { pointer-events: auto; --c: #22d3ee; border-radius: 10px; background: rgba(5, 7, 20, 0.72); border: 1px solid color-mix(in srgb, var(--c) 40%, transparent); box-shadow: 0 0 14px color-mix(in srgb, var(--c) 20%, transparent); backdrop-filter: blur(8px); overflow: hidden; }
 .live-head { cursor: pointer; display: flex; align-items: center; gap: 6px; padding: 4px 9px; font-size: 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.06); background: linear-gradient(90deg, color-mix(in srgb, var(--c) 16%, transparent), transparent); white-space: nowrap; }
-.live-head b { color: var(--c); letter-spacing: 0.08em; text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
+.live-head b { color: var(--c); letter-spacing: 0.04em; text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; }
 .live-chev { color: var(--dim); }
 .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--c); box-shadow: 0 0 8px var(--c); animation: blink 1s infinite; }
-.live-id { color: var(--dim); font-family: ui-monospace, monospace; font-size: 9px; overflow: hidden; text-overflow: ellipsis; }
-.live-mode { margin-left: auto; padding: 1px 6px; border-radius: 5px; border: 1px solid color-mix(in srgb, var(--c) 50%, transparent); color: var(--c); font-size: 8.5px; letter-spacing: 0.1em; text-transform: uppercase; }
+.live-id { color: var(--dim); font-family: ui-monospace, monospace; font-size: 9px; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 100 auto; }
+.live-mode { margin-left: auto; flex: 0 0 auto; white-space: nowrap; padding: 1px 6px; border-radius: 5px; border: 1px solid color-mix(in srgb, var(--c) 50%, transparent); color: var(--c); font-size: 8.5px; letter-spacing: 0.1em; text-transform: uppercase; }
 .live-tps { color: var(--dim); font-size: 9px; font-variant-numeric: tabular-nums; }
 .live-body { max-height: 46px; min-height: 28px; overflow-y: auto; padding: 5px 9px 6px; font-family: ui-monospace, 'SF Mono', monospace; font-size: 10px; line-height: 1.45; color: #cdd5ff; white-space: pre-wrap; word-break: break-word; mask-image: linear-gradient(to bottom, transparent 0, #000 10px); }
 .live.open .live-body { max-height: 220px; font-size: 10.5px; }
 .live-body::-webkit-scrollbar { width: 4px; }
 .live-body::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--c) 50%, transparent); border-radius: 3px; }
 .live-wait { color: var(--dim); font-style: italic; }
-.live-mode.wait { white-space: nowrap; text-shadow: 0 0 6px var(--c); animation: live-glow 1.8s ease-in-out infinite; }
+.live-mode.wait { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 10 auto; text-shadow: 0 0 6px var(--c); animation: live-glow 1.8s ease-in-out infinite; }
 @keyframes live-glow {
   0%, 100% { box-shadow: 0 0 2px color-mix(in srgb, var(--c) 30%, transparent); border-color: color-mix(in srgb, var(--c) 35%, transparent); opacity: 0.75; }
   50% { box-shadow: 0 0 12px 2px color-mix(in srgb, var(--c) 70%, transparent), inset 0 0 6px color-mix(in srgb, var(--c) 35%, transparent); border-color: var(--c); opacity: 1; }
@@ -101,7 +101,7 @@ body::before {
 .agent { padding: 8px 10px; border-radius: 10px; margin-bottom: 6px; border: 1px solid var(--panel-b); background: rgba(255, 255, 255, 0.025); font-size: 12px; }
 .agent .top { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .agent .role { font-weight: 700; letter-spacing: 0.04em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.agent .top small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex-shrink: 2; }
+.agent .top small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex-shrink: 100; }
 .agent .sub { color: var(--dim); font-size: 11px; margin-top: 3px; line-height: 1.35; max-height: 3em; overflow: hidden; }
 .agent { cursor: pointer; }
 .agent.collapsed { padding: 4px 10px; margin-bottom: 4px; }
