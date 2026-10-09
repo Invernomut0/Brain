@@ -41,7 +41,7 @@ export function AgentList() {
             <div className="agent" key={a.id} style={{ borderLeft: `3px solid ${roleColor(a.role)}`, opacity: a.endedAt ? 0.6 : 1 }}>
               <div className="top">
                 {editing === a.id ? (
-                  <input className="name-input" autoFocus value={draft} maxLength={40} onChange={(e) => setDraft(e.target.value)}
+                  <input className="name-input" autoFocus value={draft} maxLength={32} onChange={(e) => setDraft(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') rename(a.id); if (e.key === 'Escape') setEditing(null) }} onBlur={() => setEditing(null)} />
                 ) : (
                   <span className="role" style={{ color: roleColor(a.role) }}>{name ?? a.role}</span>

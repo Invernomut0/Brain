@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 
 from brain.api import create_app
 from brain.core import Brain
-from brain.names import ROLE_FLAVORS, TOKEN_RE, AgentNameError, MAX_NAME
+from brain.names import MAX_GENERATED, MAX_NAME, ROLE_FLAVORS, TOKEN_RE, AgentNameError
 from brain.names_data import DICTIONARY, PATTERNS
 
 
@@ -20,7 +20,7 @@ async def test_generated_names_fit_the_limit_in_every_style(brain):
         brain.names.set_style(style)
         for i in range(150):
             name = brain.names.assign(f"{style}-{i}", "executor")
-            assert 1 <= len(name) <= MAX_NAME and name.isprintable()
+            assert 1 <= len(name) <= MAX_GENERATED and name.isprintable()
 
 
 async def test_every_agent_gets_a_stable_unique_name(brain):
@@ -53,7 +53,7 @@ async def test_rename_by_hand_and_reroll(brain):
     with pytest.raises(AgentNameError):
         brain.names.rename("eng-2", "captain nemo")  # unique, case-insensitive
     with pytest.raises(AgentNameError):
-        brain.names.rename("eng-2", "x" * 49)
+        brain.names.rename("eng-2", "x" * (MAX_NAME + 1))
     with pytest.raises(AgentNameError):
         brain.names.rename("eng-2", "   ")
     assert brain.names.rename("eng-1", "Captain Nemo") == "Captain Nemo"  # keeping its own name is fine

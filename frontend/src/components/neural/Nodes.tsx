@@ -2,7 +2,7 @@ import { useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { Html } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
-import { roleColor, useBrain } from '../../store'
+import { roleColor, shortName, useBrain } from '../../store'
 import type { AgentView } from '../../types'
 import { basePos, flashOf, glowOf, livePos, particles, pushShock } from './fx'
 import { Halo, Orb, hdr } from './Glow'
@@ -209,7 +209,7 @@ export function AgentNode({ a, now }: { a: AgentView; now: number }) {
           minWidth: 96, maxWidth: 190, padding: '4px 9px', borderRadius: 8, textAlign: 'center', whiteSpace: 'nowrap',
           background: 'rgba(6,8,22,0.72)', border: `1px solid ${base}66`, boxShadow: `0 0 14px ${base}55`, backdropFilter: 'blur(4px)',
         }}>
-          <div style={{ color: base, fontSize: 12, fontWeight: 700, letterSpacing: '0.06em' }}>{name ?? a.role}</div>
+          <div style={{ color: base, fontSize: 12, fontWeight: 700, letterSpacing: '0.06em' }}>{shortName(name ?? a.role)}</div>
           <div style={{ color: '#aab4e6', fontSize: 10, overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.state === 'thinking' ? (reasoningPhase ? 'ragiona' : 'risponde') : detail}</div>
           {a.state === 'thinking' && (
             <>

@@ -16,7 +16,8 @@ from .names_data import DICTIONARY, PATTERNS, ROLE_FLAVORS
 TOKEN_RE = re.compile(r"\{(\w+)\}")
 KV_STYLE = "naming_style"
 OFF, ALL, CUSTOM = "off", "all", "custom"
-MAX_NAME = 48
+MAX_NAME = 32  # typed by hand
+MAX_GENERATED = 26  # keeps generated names readable in lists and graphs
 
 
 class AgentNameError(ValueError):
@@ -67,7 +68,7 @@ class AgentNames:
         for _ in range(2000):
             used = self.rng.choice(styles)
             name = self._expand(self.rng.choice(PATTERNS[used]))
-            if len(name) <= MAX_NAME and not self.db.one("SELECT 1 FROM agent_names WHERE name=?", (name,)):
+            if len(name) <= MAX_GENERATED and not self.db.one("SELECT 1 FROM agent_names WHERE name=?", (name,)):
                 return name, used
         raise RuntimeError("unable to generate a unique agent name after 2000 attempts")
 
