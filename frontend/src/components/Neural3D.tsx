@@ -17,7 +17,7 @@ const SATELLITES: { id: string; kind: SatKind; label: string; color: string; pos
   { id: 'user', kind: 'user', label: 'Lorenzo', color: '#ffe9b0', pos: [-13, 3, 2] },
   { id: 'internet', kind: 'internet', label: 'Internet', color: '#22d3ee', pos: [13, 3, -2] },
   { id: 'sandbox', kind: 'sandbox', label: 'Sandbox · Podman', color: '#ffb020', pos: [3, -4.5, 11] },
-  { id: 'memory', kind: 'memory', label: 'Memoria', color: '#60a5fa', pos: [-3, 6.5, -11] },
+  { id: 'memory', kind: 'memory', label: 'Memory', color: '#60a5fa', pos: [-3, 6.5, -11] },
 ]
 
 function depthOf(a: AgentView, all: Record<string, AgentView>): number {

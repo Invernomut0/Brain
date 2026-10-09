@@ -40,7 +40,7 @@ def test_budget_and_chat_validation(client):
 def test_websocket_streams_snapshot_then_events(client):
     with client.websocket_connect("/ws") as ws:
         assert ws.receive_json()["type"] == "snapshot"
-        client.post("/api/v1/chat", json={"text": "ciao Brain, chi sei?"})
+        client.post("/api/v1/chat", json={"text": "hi Brain, who are you?"})
         seen = set()
         for _ in range(40):
             seen.add(ws.receive_json()["type"])

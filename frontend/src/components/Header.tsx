@@ -24,20 +24,20 @@ export function Header() {
   return (
     <header className="panel header">
       <span className="logo">BRAIN</span>
-      <span className="chip"><i className={`dot ${st === 'running' ? 'run' : st === 'killed' ? 'bad' : st === 'paused' ? '' : 'ok'}`} />{st.toUpperCase()} · ciclo {control.cycle}</span>
+      <span className="chip"><i className={`dot ${st === 'running' ? 'run' : st === 'killed' ? 'bad' : st === 'paused' ? '' : 'ok'}`} />{st.toUpperCase()} · cycle {control.cycle}</span>
       <span className="chip"><i className={`dot ${health.llm?.ok ? 'ok' : 'bad'}`} />LM Studio{health.llm?.model ? ` · ${health.llm.model}` : ''}</span>
-      <span className="chip"><i className={`dot ${health.sandbox?.ok ? 'ok' : 'bad'}`} />Podman{health.sandbox?.ok && !health.sandbox.image ? ' (immagine da costruire)' : health.sandbox?.ok ? ` · ${health.sandbox.running ? health.sandbox.container : 'container in avvio al primo uso'}` : ''}</span>
+      <span className="chip"><i className={`dot ${health.sandbox?.ok ? 'ok' : 'bad'}`} />Podman{health.sandbox?.ok && !health.sandbox.image ? ' (image to build)' : health.sandbox?.ok ? ` · ${health.sandbox.running ? health.sandbox.container : 'container starts on first use'}` : ''}</span>
       <span className="chip"><i className={`dot ${connected ? 'ok' : 'bad'}`} />{connected ? 'live' : 'offline'}</span>
-      <span className="chip"><i className={`dot ${sys.llm_busy ? 'run' : 'ok'}`} />{sys.tps.toFixed(1)} tok/s · {sys.llm_busy} attivi{sys.llm_queued ? ` · ${sys.llm_queued} in coda` : ''} · {fmt(sys.tokens)} tok</span>
+      <span className="chip"><i className={`dot ${sys.llm_busy ? 'run' : 'ok'}`} />{sys.tps.toFixed(1)} tok/s · {sys.llm_busy} active{sys.llm_queued ? ` · ${sys.llm_queued} queued` : ''} · {fmt(sys.tokens)} tok</span>
       <span className="spacer" />
-      <label className="budget">cicli max <input defaultValue={control.max_cycles} key={'c' + control.max_cycles} onBlur={(e) => budget('max_cycles', e.target.value)} /></label>
-      <label className="budget">token max <input defaultValue={control.max_tokens} key={'t' + control.max_tokens} onBlur={(e) => budget('max_tokens', e.target.value)} /></label>
-      {!active && <button className="btn go" disabled={busy || !connected} onClick={() => act('start')}>▶ Avvia</button>}
-      {st === 'running' && <button className="btn" disabled={busy} onClick={() => act('pause')}>⏸ Pausa</button>}
-      {st === 'paused' && <button className="btn go" disabled={busy} onClick={() => act('resume')}>▶ Riprendi</button>}
+      <label className="budget">max cycles <input defaultValue={control.max_cycles} key={'c' + control.max_cycles} onBlur={(e) => budget('max_cycles', e.target.value)} /></label>
+      <label className="budget">max tokens <input defaultValue={control.max_tokens} key={'t' + control.max_tokens} onBlur={(e) => budget('max_tokens', e.target.value)} /></label>
+      {!active && <button className="btn go" disabled={busy || !connected} onClick={() => act('start')}>▶ Start</button>}
+      {st === 'running' && <button className="btn" disabled={busy} onClick={() => act('pause')}>⏸ Pause</button>}
+      {st === 'paused' && <button className="btn go" disabled={busy} onClick={() => act('resume')}>▶ Resume</button>}
       <button className="btn" disabled={busy || !active} onClick={() => act('stop')}>■ Stop</button>
       <button className="btn danger" disabled={busy || st === 'idle'} onClick={() => act('kill')}>☠ Kill</button>
-      <button className="btn" disabled={busy || !connected} onClick={() => setResetOpen(true)} title="Riporta Brain a un'installazione nuova">⟲ Reset</button>
+      <button className="btn" disabled={busy || !connected} onClick={() => setResetOpen(true)} title="Return Brain to a brand-new installation">⟲ Reset</button>
       {resetOpen && <ResetDialog onClose={() => setResetOpen(false)} />}
       {err && <div className="toast" onClick={() => setErr(null)}>{err}</div>}
     </header>

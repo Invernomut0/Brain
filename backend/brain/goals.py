@@ -86,4 +86,4 @@ class GoalStore:
             f"#{g['id']} [{g['status']}] (p={g['priority']:.1f}) {g['title']}"
             + (f" -> {g['result'][:100]}" if g.get("result") else "")
             for g in rows
-        ) or "(nessun obiettivo)"
+        ) or "(no goals)"

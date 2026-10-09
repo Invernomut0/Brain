@@ -68,7 +68,7 @@ class ToolRegistry:
             try:
                 return await tool.fn(ctx, **args)
             except TypeError as e:  # wrong/missing arguments: tell the model the exact signature
-                raise TypeError(f"{e}. Firma corretta: {tool.signature()}") from e
+                raise TypeError(f"{e}. Correct signature: {tool.signature()}") from e
         custom = self.custom().get(name)
         if not custom:
             raise KeyError(f"tool '{name}' not found")
@@ -100,7 +100,7 @@ def _safe_path(ctx: ToolContext, rel: str) -> Path:
     base = ctx.brain.settings.workspace_dir.resolve()
     p = (base / rel).resolve()
     if base != p and base not in p.parents:
-        raise PermissionError("path fuori dal workspace: usa percorsi RELATIVI al workspace (es. 'notes/a.txt'; nella sandbox il workspace e' /workspace) senza '..'")
+        raise PermissionError("path outside the workspace: use paths RELATIVE to the workspace (e.g. 'notes/a.txt'; in the sandbox the workspace is /workspace) without '..'")
     return p
 
 
@@ -188,7 +188,7 @@ async def wiki_search(ctx: ToolContext, query: str, k: int = 5):
 async def wiki_read(ctx: ToolContext, id: str):
     page = ctx.brain.wiki.read_page(str(id).strip().removesuffix(".md"))
     if not page:
-        return f"pagina '{id}' non trovata: usa wiki_search per trovare gli id"
+        return f"page '{id}' not found: use wiki_search to find the ids"
     return {"id": page["id"], "title": page["title"], "body": _clip(page["body"], 5000), "links": [l["id"] or l["target"] for l in page["links"]]}
 
 
@@ -196,23 +196,23 @@ async def wiki_note(ctx: ToolContext, title: str, body: str, summary: str = ""):
     try:
         pid = await ctx.brain.wiki.note(title, body, summary, f"agent:{ctx.agent.id}")
     except ValueError as e:
-        return f"ERRORE: {e}"
-    return f"archiviata come [[{pid}]]"
+        return f"ERROR: {e}"
+    return f"filed as [[{pid}]]"
 
 
 async def ask_user(ctx: ToolContext, message: str, wait: int = 120):
     reply = await ctx.brain.orchestrator.ask(ctx.agent, message, min(max(int(wait), 0), 300))
     if reply is not None:
-        return f"Risposta di Lorenzo: {reply}"
+        return f"Lorenzo's reply: {reply}"
     return (
-        "Messaggio inviato ma Lorenzo non ha (ancora) risposto: prosegui in autonomia con ipotesi ragionevoli, "
-        "dichiarale nel summary; se risponde dopo, ricevi un messaggio [Lorenzo] o l'obiettivo viene riaperto."
+        "Message sent but Lorenzo has not replied (yet): proceed autonomously with reasonable assumptions, "
+        "state them in the summary; if he replies later you will receive a [Lorenzo] message or the goal will be reopened."
     )
 
 
 async def send_message(ctx: ToolContext, to: str, text: str):
     ok = ctx.brain.orchestrator.deliver(ctx.agent.id, to, text)
-    return "consegnato" if ok else f"agente {to} non trovato"
+    return "delivered" if ok else f"agent {to} not found"
 
 
 async def spawn_agent(ctx: ToolContext, role: str, task: str, system_prompt: str = ""):
@@ -227,11 +227,11 @@ async def spawn_parallel(ctx: ToolContext, tasks: list):
 async def create_tool(ctx: ToolContext, name: str, description: str, params: dict, code: str, test_code: str):
     b = ctx.brain
     if not NAME_RE.match(name) or name in b.tools.builtin:
-        return {"ok": False, "error": "nome non valido o gia' usato da un tool built-in (a-z, 0-9, _; 3-31 caratteri)"}
+        return {"ok": False, "error": "invalid name or already used by a built-in tool (a-z, 0-9, _; 3-31 characters)"}
     if "def run(" not in code:
-        return {"ok": False, "error": "il codice deve definire run(**kwargs)"}
+        return {"ok": False, "error": "the code must define run(**kwargs)"}
     if "def test_" not in test_code:
-        return {"ok": False, "error": "servono test pytest (funzioni test_*) reali"}
+        return {"ok": False, "error": "real pytest tests (test_* functions) are required"}
     tdir = b.settings.workspace_dir / "tools"
     tdir.mkdir(parents=True, exist_ok=True)
     (tdir / f"{name}.py").write_text(code)
@@ -246,8 +246,8 @@ async def create_tool(ctx: ToolContext, name: str, description: str, params: dic
     )
     await b.bus.publish("tool.created", ctx.agent.id, name=name, description=description, passed=passed)
     if not passed:
-        return {"ok": False, "error": "test falliti, tool NON registrato", "output": res.brief()[-1200:]}
-    return {"ok": True, "message": f"tool '{name}' registrato e disponibile da ora", "tests": res.brief()[-300:]}
+        return {"ok": False, "error": "tests failed, tool NOT registered", "output": res.brief()[-1200:]}
+    return {"ok": True, "message": f"tool '{name}' registered and available from now on", "tests": res.brief()[-300:]}
 
 
 async def propose_prompt(ctx: ToolContext, role: str, new_prompt: str, reason: str):
@@ -261,25 +261,25 @@ async def propose_hook(ctx: ToolContext, name: str, code: str, test_code: str, r
 def _builtin_tools() -> list[Tool]:
     T = Tool
     return [
-        T("web_search", "cerca su internet (DuckDuckGo); ritorna titolo/url/snippet", {"query": "str", "max_results": "int=6"}, web_search),
-        T("web_fetch", "scarica una pagina web e ne estrae il testo e i link", {"url": "str", "max_chars": "int=6000"}, web_fetch),
-        T("http_request", "richiesta HTTP generica (GET/POST/...) a qualunque URL/API", {"method": "str", "url": "str", "headers": "dict?", "body": "json?"}, http_request),
-        T("python_exec", "esegue codice Python nella sandbox Podman (rete attiva, /workspace persistente)", {"code": "str"}, python_exec),
-        T("shell_exec", "esegue un comando shell nella sandbox Podman", {"command": "str"}, shell_exec),
-        T("read_file", "legge un file del workspace (path relativo; = /workspace nella sandbox)", {"path": "str"}, read_file),
-        T("write_file", "scrive un file nel workspace (path relativo, es. 'tools/x.py'; = /workspace nella sandbox)", {"path": "str", "content": "str"}, write_file),
-        T("list_files", "elenca i file del workspace (path relativo)", {"path": "str='.'"}, list_files),
-        T("remember", "salva un fatto nella memoria a lungo termine", {"text": "str", "tags": "list?", "importance": "0-1"}, remember),
-        T("recall", "cerca nella memoria a lungo termine (semantica)", {"query": "str", "k": "int=5"}, recall),
-        T("wiki_search", "cerca nella wiki di Brain (conoscenza gia' compilata: concetti, fasi, decisioni, episodi, tool); ritorna id, titolo, riassunto", {"query": "str", "k": "int=5"}, wiki_search),
-        T("wiki_read", "legge una pagina della wiki dato il suo id (es. 'concepts/sqlite')", {"id": "str"}, wiki_read),
-        T("wiki_note", "archivia nella wiki una risposta o scoperta utile (nota permanente, collegabile con [[id]])", {"title": "str", "body": "markdown", "summary": "str?"}, wiki_note),
-        T("ask_user", "scrive a Lorenzo in chat e ATTENDE la sua risposta (wait secondi, default 120, max 300, 0 = non attendere); ritorna la risposta o l'avviso di mancata risposta", {"message": "str", "wait": "int=120"}, ask_user),
-        T("send_message", "invia un messaggio a un altro agente vivo", {"to": "agent_id", "text": "str"}, send_message),
-        T("spawn_agent", "crea un sotto-agente con un ruolo e attende il risultato", {"role": "str", "task": "str", "system_prompt": "str? (ruolo personalizzato)"}, spawn_agent),
-        T("spawn_parallel", "lancia fino a 4 sotto-agenti IN PARALLELO e attende tutti i risultati", {"tasks": "list di {role, task, system_prompt?}"}, spawn_parallel),
-        T("create_tool", "crea un nuovo tool Python permanente: code definisce run(**kwargs); test_code sono test pytest che importano il modulo (sys.path.insert(0,'/workspace/tools'))",
-          {"name": "snake_case", "description": "str", "params": "dict nome->descrizione", "code": "str", "test_code": "str"}, create_tool),
-        T("propose_prompt", f"modifica il prompt di un ruolo (planner/executor/researcher/engineer/critic/reflector); versionato con rollback automatico", {"role": "str", "new_prompt": "str", "reason": "str"}, propose_prompt),
-        T("propose_hook", "modifica il codice di un hook evolvibile (prioritize.prioritize(goals,state)->ids | context.build_context(state)->str) con test; eseguito in sandbox", {"name": "prioritize|context", "code": "str", "test_code": "str", "reason": "str"}, propose_hook),
+        T("web_search", "search the internet (DuckDuckGo); returns title/url/snippet", {"query": "str", "max_results": "int=6"}, web_search),
+        T("web_fetch", "download a web page and extract its text and links", {"url": "str", "max_chars": "int=6000"}, web_fetch),
+        T("http_request", "generic HTTP request (GET/POST/...) to any URL/API", {"method": "str", "url": "str", "headers": "dict?", "body": "json?"}, http_request),
+        T("python_exec", "run Python code in the Podman sandbox (network enabled, persistent /workspace)", {"code": "str"}, python_exec),
+        T("shell_exec", "run a shell command in the Podman sandbox", {"command": "str"}, shell_exec),
+        T("read_file", "read a workspace file (relative path; = /workspace in the sandbox)", {"path": "str"}, read_file),
+        T("write_file", "write a workspace file (relative path, e.g. 'tools/x.py'; = /workspace in the sandbox)", {"path": "str", "content": "str"}, write_file),
+        T("list_files", "list the workspace files (relative path)", {"path": "str='.'"}, list_files),
+        T("remember", "save a fact in long-term memory", {"text": "str", "tags": "list?", "importance": "0-1"}, remember),
+        T("recall", "search long-term memory (semantic)", {"query": "str", "k": "int=5"}, recall),
+        T("wiki_search", "search Brain's wiki (already compiled knowledge: concepts, phases, decisions, episodes, tools); returns id, title, summary", {"query": "str", "k": "int=5"}, wiki_search),
+        T("wiki_read", "read a wiki page given its id (e.g. 'concepts/sqlite')", {"id": "str"}, wiki_read),
+        T("wiki_note", "file a useful answer or discovery in the wiki (permanent note, linkable with [[id]])", {"title": "str", "body": "markdown", "summary": "str?"}, wiki_note),
+        T("ask_user", "write to Lorenzo in the chat and WAIT for his reply (wait seconds, default 120, max 300, 0 = do not wait); returns the reply or a no-reply notice", {"message": "str", "wait": "int=120"}, ask_user),
+        T("send_message", "send a message to another live agent", {"to": "agent_id", "text": "str"}, send_message),
+        T("spawn_agent", "create a sub-agent with a role and wait for its result", {"role": "str", "task": "str", "system_prompt": "str? (custom role)"}, spawn_agent),
+        T("spawn_parallel", "launch up to 4 sub-agents IN PARALLEL and wait for all the results", {"tasks": "list of {role, task, system_prompt?}"}, spawn_parallel),
+        T("create_tool", "create a new permanent Python tool: code defines run(**kwargs); test_code are pytest tests that import the module (sys.path.insert(0,'/workspace/tools'))",
+          {"name": "snake_case", "description": "str", "params": "dict name->description", "code": "str", "test_code": "str"}, create_tool),
+        T("propose_prompt", "change the prompt of a role (planner/executor/researcher/engineer/critic/reflector); versioned with automatic rollback", {"role": "str", "new_prompt": "str", "reason": "str"}, propose_prompt),
+        T("propose_hook", "change the code of an evolvable hook (prioritize.prioritize(goals,state)->ids | context.build_context(state)->str) with tests; runs in the sandbox", {"name": "prioritize|context", "code": "str", "test_code": "str", "reason": "str"}, propose_hook),
     ]

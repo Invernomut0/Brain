@@ -17,13 +17,13 @@ async def test_reset_returns_to_a_brand_new_installation(brain):
     await brain._bootstrap()
     root = brain.goals.root()["id"]
     await brain.goals.add("g1", "", root)
-    await brain.memory.add("fact", "Roma e' la capitale", ["geo"])
-    brain.memory.journal_add("reflection", "ho imparato")
-    await brain.lessons.add("Usa percorsi relativi per write_file sempre", "fix")
-    await brain.selfmodel.update({"hypotheses": ["forse sono cosciente"]})
+    await brain.memory.add("fact", "Rome is the capital", ["geo"])
+    brain.memory.journal_add("reflection", "I learned something")
+    await brain.lessons.add("Always use relative paths for write_file", "fix")
+    await brain.selfmodel.update({"hypotheses": ["maybe I am conscious"]})
     assert (await brain.tools.call(ctx, "create_tool", dict(name="dbl", description="d", params={"x": "int"}, code=TOOL, test_code=TEST)))["ok"]
     await brain.tools.call(ctx, "write_file", {"path": "notes/a.txt", "content": "x"})
-    assert (await brain.evolution.propose_prompt("executor", "Sei un executor sperimentale. " * 6, "test"))["ok"]
+    assert (await brain.evolution.propose_prompt("executor", "You are an experimental executor. " * 6, "test"))["ok"]
     brain.control.cycle = 7
 
     await brain.reset()

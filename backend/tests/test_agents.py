@@ -6,7 +6,7 @@ from brain.agents import Agent
 async def test_agent_solves_task_with_real_tool_in_sandbox(brain):
     agent = Agent(
         brain, "executor",
-        "Calcola 17*23 usando python_exec nella sandbox, poi concludi con finish riportando il numero nel summary.",
+        "Compute 17*23 using python_exec in the sandbox, then conclude with finish reporting the number in the summary.",
         max_steps=6,
     )
     res = await brain.orchestrator.run_agent(agent)
@@ -23,7 +23,7 @@ async def test_one_full_cycle_plans_executes_critiques(brain):
     pending = brain.goals.pending()
     assert pending, "planner produced no goals"
     assert all(g["expected_success"] is not None for g in pending)
-    brain.db.execute("UPDATE goals SET description=description || ' Limita il lavoro a massimo 3 passi.'")
+    brain.db.execute("UPDATE goals SET description=description || ' Limit the work to at most 3 steps.'")
     await brain.orchestrator.execute_goal(pending[0])
     g = brain.goals.get(pending[0]["id"])
     assert g["status"] in ("done", "failed", "pending")

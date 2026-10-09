@@ -23,18 +23,18 @@ function MainGoalDialog({ initial, onClose }: { initial: string; onClose: () => 
   return createPortal(
     <div className="modal-back" onClick={() => !busy && onClose()}>
       <div className="modal goal" onClick={(e) => e.stopPropagation()}>
-        <h2>Obiettivo principale</h2>
-        <p>Ciò che Brain cerca di raggiungere. Il planner lo segue dal prossimo ciclo di pianificazione.</p>
+        <h2>Main goal</h2>
+        <p>What Brain is trying to achieve. The planner follows it from the next planning cycle.</p>
         <textarea autoFocus rows={8} value={text} disabled={busy} onChange={(e) => setText(e.target.value)} />
         <div className="goal-count">{text.trim().length}/2000</div>
         <label className="check">
           <input type="checkbox" checked={archive} disabled={busy} onChange={(e) => setArchive(e.target.checked)} />
-          Annulla gli obiettivi in coda pianificati per il vecchio obiettivo (consigliato)
+          Cancel the queued goals planned for the old goal (recommended)
         </label>
         {err && <div className="modal-err">{err}</div>}
         <div className="modal-actions">
-          <button className="btn" disabled={busy} onClick={onClose}>Annulla</button>
-          <button className="btn go" disabled={busy || !valid} onClick={save}>{busy ? <><span className="spin" /> Salvataggio…</> : 'Salva obiettivo'}</button>
+          <button className="btn" disabled={busy} onClick={onClose}>Cancel</button>
+          <button className="btn go" disabled={busy || !valid} onClick={save}>{busy ? <><span className="spin" /> Saving…</> : 'Save goal'}</button>
         </div>
       </div>
     </div>,
@@ -47,7 +47,7 @@ export function MainGoalCard() {
   const [open, setOpen] = useState(false)
   return (
     <section className="panel goalcard">
-      <h3>Obiettivo principale <button className="btn mini" onClick={() => setOpen(true)} disabled={!goal} title="Modifica l'obiettivo principale">✎ Modifica</button></h3>
+      <h3>Main goal <button className="btn mini" onClick={() => setOpen(true)} disabled={!goal} title="Edit the main goal">✎ Edit</button></h3>
       <div className="goalcard-text" title={goal}>{goal || '—'}</div>
       {open && <MainGoalDialog initial={goal} onClose={() => setOpen(false)} />}
     </section>
@@ -65,9 +65,9 @@ export function StartOverlay() {
   return (
     <div className="start-overlay">
       <div className="start-card">
-        <div className="start-title">{state === 'idle' ? 'Brain è pronto' : 'Brain è fermo'}</div>
+        <div className="start-title">{state === 'idle' ? 'Brain is ready' : 'Brain is stopped'}</div>
         <div className="start-goal">{goal}</div>
-        <button className="btn go big" disabled={busy} onClick={start}>{busy ? <span className="spin" /> : '▶ Avvia'}</button>
+        <button className="btn go big" disabled={busy} onClick={start}>{busy ? <span className="spin" /> : '▶ Start'}</button>
       </div>
     </div>
   )

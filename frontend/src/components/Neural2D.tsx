@@ -11,7 +11,7 @@ const FIXED: Record<string, { p: P; color: string; label: string }> = {
   user: { p: { x: -390, y: -50 }, color: '#ffe9b0', label: 'Lorenzo' },
   internet: { p: { x: 390, y: -50 }, color: '#22d3ee', label: 'Internet' },
   sandbox: { p: { x: 70, y: 235 }, color: '#ffb020', label: 'Sandbox · Podman' },
-  memory: { p: { x: -70, y: -235 }, color: '#60a5fa', label: 'Memoria' },
+  memory: { p: { x: -70, y: -235 }, color: '#60a5fa', label: 'Memory' },
 }
 
 const arc = (a: P, b: P) => {
@@ -104,7 +104,7 @@ export function Neural2D() {
         <circle r={52} fill="none" stroke="#22d3ee" strokeWidth={1.5} strokeDasharray="6 10" className="n2d-spin" />
         <circle r={64} fill="none" stroke="#f472d0" strokeWidth={1} strokeDasharray="2 12" className="n2d-spin rev" />
         <text y={96} textAnchor="middle" fontSize={15} letterSpacing={6} fill="#c7d0ff" fontWeight={700}>MIND</text>
-        <text y={113} textAnchor="middle" fontSize={10} letterSpacing={2} fill="#7f89b8">CICLO {cycle} · AWARENESS {(aw * 100).toFixed(0)}</text>
+        <text y={113} textAnchor="middle" fontSize={10} letterSpacing={2} fill="#7f89b8">CYCLE {cycle} · AWARENESS {(aw * 100).toFixed(0)}</text>
       </g>
 
       {Object.entries(FIXED).filter(([id]) => id !== 'core').map(([id, f]) => (
@@ -147,15 +147,15 @@ export function ViewOff({ onPick }: { onPick: (m: '3d' | '2d') => void }) {
   const active = Object.values(agents).filter((a) => !a.endedAt)
   return (
     <div className="view-off">
-      <div className="view-off-title">Vista grafica disattivata</div>
-      <div className="view-off-sub">Nessun utilizzo di GPU. Brain continua a lavorare normalmente.</div>
-      <div className="view-off-stats">{active.length} agenti attivi · {sys.tps.toFixed(1)} tok/s · {sys.llm_busy} richieste LLM{sys.llm_queued ? ` (+${sys.llm_queued} in coda)` : ''}</div>
+      <div className="view-off-title">Graphic view disabled</div>
+      <div className="view-off-sub">No GPU use. Brain keeps working normally.</div>
+      <div className="view-off-stats">{active.length} active agents · {sys.tps.toFixed(1)} tok/s · {sys.llm_busy} LLM requests{sys.llm_queued ? ` (+${sys.llm_queued} queued)` : ''}</div>
       <div className="view-off-list">
         {active.map((a) => <span key={a.id} style={{ color: roleColor(a.role) }}>{a.role} <small>{a.state === 'acting' ? a.detail : a.state}</small></span>)}
       </div>
       <div className="view-off-actions">
-        <button className="btn" onClick={() => onPick('2d')}>Mostra 2D</button>
-        <button className="btn go" onClick={() => onPick('3d')}>Mostra 3D</button>
+        <button className="btn" onClick={() => onPick('2d')}>Show 2D</button>
+        <button className="btn go" onClick={() => onPick('3d')}>Show 3D</button>
       </div>
     </div>
   )

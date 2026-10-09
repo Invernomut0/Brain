@@ -253,7 +253,7 @@ export function GraphCanvas(p: Props) {
             onNodeHover={(n: any) => setHover(n?.id ?? null)}
           />
         ) : (
-          <Suspense fallback={<div className="empty">Carico la vista 3D…</div>}>
+          <Suspense fallback={<div className="empty">Loading 3D view…</div>}>
             <ForceGraph3D
               ref={fg} {...common}
               showNavInfo={false} nodeThreeObject={nodeObj3d} nodeThreeObjectExtend={false}
@@ -265,7 +265,7 @@ export function GraphCanvas(p: Props) {
       <div className="gmode">
         <button className={mode === '2d' ? 'on' : ''} onClick={() => setMode('2d')}>2D</button>
         <button className={mode === '3d' ? 'on' : ''} onClick={() => setMode('3d')}>3D</button>
-        <button onClick={fit} title="Inquadra tutto">⤢</button>
+        <button onClick={fit} title="Fit to view">⤢</button>
       </div>
     </div>
   )

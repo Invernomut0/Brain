@@ -52,9 +52,9 @@ class Orchestrator:
 
     async def spawn_and_run(self, parent: Agent, role: str, task: str, system_prompt: str = "") -> str:
         if parent.depth >= MAX_DEPTH:
-            return "ERRORE: profondita' massima di sotto-agenti raggiunta"
+            return "ERROR: maximum sub-agent depth reached"
         if len(self.live) >= MAX_LIVE_AGENTS:
-            return "ERRORE: troppi agenti attivi"
+            return "ERROR: too many live agents"
         child = Agent(self.b, role[:20] or "executor", task, parent.goal_id, parent=parent,
                       system_prompt=system_prompt, max_steps=8)
         res = await self.run_agent(child)
@@ -64,7 +64,7 @@ class Orchestrator:
         """Run several sub-agents concurrently and return all their results."""
         specs = [s for s in specs if isinstance(s, dict) and s.get("task")][:4]
         if not specs:
-            return "ERRORE: passa tasks=[{role, task}, ...] (max 4)"
+            return "ERROR: pass tasks=[{role, task}, ...] (max 4)"
         results = await asyncio.gather(*(
             self.spawn_and_run(parent, str(s.get("role", "executor")), str(s["task"]), str(s.get("system_prompt", "")))
             for s in specs
@@ -76,13 +76,13 @@ class Orchestrator:
         """Scheduler: keeps up to `max_parallel_agents` goals running concurrently while planning in the background."""
         b = self.b
         await b.control.set_state("running")
-        await b.bus.publish("system.log", None, level="info", text=f"Brain avviato (fino a {b.settings.max_parallel_agents} obiettivi in parallelo)")
+        await b.bus.publish("system.log", None, level="info", text=f"Brain started (up to {b.settings.max_parallel_agents} goals in parallel)")
         try:
             while True:
                 await b.control.gate()
                 reason = b.control.budget_exhausted(b.llm.total_tokens)
                 if reason:
-                    await b.bus.publish("system.log", None, level="warn", text=f"Pausa automatica: {reason}")
+                    await b.bus.publish("system.log", None, level="warn", text=f"Automatic pause: {reason}")
                     await b.control.set_state("paused")
                     continue
                 await self._fill_slots()
@@ -95,7 +95,7 @@ class Orchestrator:
                 await asyncio.wait(waiting, timeout=2, return_when=asyncio.FIRST_COMPLETED)
                 await self._reap()
         except Halt:
-            await b.bus.publish("system.log", None, level="info", text=f"Fermato ({b.control.state})")
+            await b.bus.publish("system.log", None, level="info", text=f"Stopped ({b.control.state})")
         finally:
             tasks = [*self.running.values(), *self._maint.values(), *([self._plan_task] if self._plan_task else [])]
             for t in tasks:
@@ -126,14 +126,14 @@ class Orchestrator:
             if isinstance(exc, Halt):
                 raise exc
             if exc:
-                await b.bus.publish("system.log", None, level="error", text=f"Obiettivo #{gid}: {type(exc).__name__}: {str(exc)[:200]}")
+                await b.bus.publish("system.log", None, level="error", text=f"Goal #{gid}: {type(exc).__name__}: {str(exc)[:200]}")
                 await asyncio.sleep(2 if not isinstance(exc, LLMError) else 5)
 
     async def _plan_safe(self) -> None:
         try:
             await self.plan()
         except LLMError as e:
-            await self.b.bus.publish("system.log", None, level="error", text=f"Planner: LLM non disponibile: {e}")
+            await self.b.bus.publish("system.log", None, level="error", text=f"Planner: LLM unavailable: {e}")
             await asyncio.sleep(5)
 
     async def _run_goal(self, goal: dict) -> None:
@@ -178,20 +178,20 @@ class Orchestrator:
     # -------------------------------------------------------------- planning
     async def plan(self) -> None:
         b = self.b
-        await b.bus.publish("agent.spawn", "planner", role="planner", parent=None, goal_id=None, task="pianificazione")
-        await b.bus.publish("agent.state", "planner", state="thinking", detail="pianifica")
+        await b.bus.publish("agent.spawn", "planner", role="planner", parent=None, goal_id=None, task="planning")
+        await b.bus.publish("agent.state", "planner", state="thinking", detail="planning")
         root = b.goals.root()
         memories = await b.memory.search(self.main_goal(), 3)
         hook_ctx = await b.evolution.call_hook("context", "build_context", b.state_brief()) or ""
         chat = self._recent_chat(6)
         prompt = (
-            f"OBIETTIVO RADICE (scelto da Lorenzo, puo' cambiare; prevale su ogni altra indicazione): {self.main_goal()}\n\nSELF-MODEL:\n{b.selfmodel.render()}\n\n"
-            f"METRICHE: {json.dumps(b.selfmodel.metrics())}\n\nOBIETTIVI (recenti):\n{b.goals.summary()}\n\n"
-            f"GIORNALE:\n" + "\n".join(j["text"][:200] for j in b.memory.journal_recent(3)) +
-            f"\n\nMEMORIA RILEVANTE:\n" + "\n".join(m["text"][:200] for m in memories) +
-            f"\n\nCHAT RECENTE CON LORENZO:\n{chat}\n\nTOOL: {', '.join(b.tools.all())}\n{hook_ctx}\n\n"
-            f"Proponi da 1 a 3 nuovi obiettivi. Ruoli possibili per 'role': executor, researcher, engineer."
-            + (f"\n\nLEZIONI APPRESE (evita questi errori):\n{b.lessons.render(8)}" if b.lessons.count() else "")
+            f"ROOT GOAL (chosen by Lorenzo, may change; it overrides any other instruction): {self.main_goal()}\n\nSELF-MODEL:\n{b.selfmodel.render()}\n\n"
+            f"METRICS: {json.dumps(b.selfmodel.metrics())}\n\nGOALS (recent):\n{b.goals.summary()}\n\n"
+            f"JOURNAL:\n" + "\n".join(j["text"][:200] for j in b.memory.journal_recent(3)) +
+            f"\n\nRELEVANT MEMORY:\n" + "\n".join(m["text"][:200] for m in memories) +
+            f"\n\nRECENT CHAT WITH LORENZO:\n{chat}\n\nTOOLS: {', '.join(b.tools.all())}\n{hook_ctx}\n\n"
+            f"Propose 1 to 3 new goals. Possible values for 'role': executor, researcher, engineer."
+            + (f"\n\nLESSONS LEARNED (avoid these mistakes):\n{b.lessons.render(8)}" if b.lessons.count() else "")
         )
         try:
             out = await b.llm.chat_json(
@@ -226,7 +226,7 @@ class Orchestrator:
         started = time.time()
         await b.goals.set_status(goal["id"], "active")
         role = goal.get("role") or "executor"
-        task = f"OBIETTIVO #{goal['id']}: {goal['title']}\n{goal['description']}\n\nObiettivo radice di Brain: {self.main_goal()[:200]}"
+        task = f"GOAL #{goal['id']}: {goal['title']}\n{goal['description']}\n\nBrain's root goal: {self.main_goal()[:200]}"
         agent = Agent(b, role, task, goal["id"])
         res = await self.run_agent(agent)
         verdict = await self.critique(goal, res, started)
@@ -238,25 +238,25 @@ class Orchestrator:
             await b.goals.set_status(goal["id"], "done", summary)
         elif goal["attempts"] < 1:
             await b.goals.requeue(goal["id"], str(verdict.get("feedback", ""))[:300])
-            await b.lessons.add(f"Tentativo fallito per '{goal['title'][:80]}': {verdict.get('feedback', '')}", "goal")
+            await b.lessons.add(f"Failed attempt for '{goal['title'][:80]}': {verdict.get('feedback', '')}", "goal")
         else:
             await b.goals.set_status(goal["id"], "failed", f"{summary} | critic: {verdict.get('feedback', '')}"[:1500])
-            await b.lessons.add(f"Obiettivo fallito '{goal['title'][:80]}': {verdict.get('feedback', '')}", "goal")
+            await b.lessons.add(f"Goal failed '{goal['title'][:80]}': {verdict.get('feedback', '')}", "goal")
         await b.memory.add(
-            "episode", f"Obiettivo '{goal['title']}' -> {'riuscito' if ok else 'fallito'}: {summary[:400]}", [role], 0.6
+            "episode", f"Goal '{goal['title']}' -> {'succeeded' if ok else 'failed'}: {summary[:400]}", [role], 0.6
         )
-        b.memory.journal_add("outcome", f"#{goal['id']} {goal['title']}: {'OK' if ok else 'FALLITO'} - {summary[:300]}")
+        b.memory.journal_add("outcome", f"#{goal['id']} {goal['title']}: {'OK' if ok else 'FAILED'} - {summary[:300]}")
 
     async def critique(self, goal: dict, res: dict, since: float = 0.0) -> dict:
         b = self.b
         cid = f"critic-{goal['id']}"
-        await b.bus.publish("agent.spawn", cid, role="critic", parent=None, goal_id=goal["id"], task="valutazione")
+        await b.bus.publish("agent.spawn", cid, role="critic", parent=None, goal_id=goal["id"], task="evaluation")
         evidence = "\n".join(f"- {t['tool']} ok={t['ok']}: {t['obs'][:200]}" for t in res["trace"])
         replies = [e["data"]["text"][:300] for e in b.bus.recent(80, ["chat.message"]) if e["ts"] >= since and e["data"].get("role") == "user"]
         prompt = (
-            f"OBIETTIVO: {goal['title']}\nCRITERI: {goal['description']}\n\nDICHIARAZIONE DELL'AGENTE (success={res['success']}): "
-            f"{res['summary']}\n\nPROVE (tool usati):\n{evidence or '(nessuno)'}"
-            + ("\n\nMESSAGGI DI LORENZO ARRIVATI DURANTE L'ESECUZIONE:\n" + "\n".join(f"- {r}" for r in replies) if replies else "")
+            f"GOAL: {goal['title']}\nCRITERIA: {goal['description']}\n\nAGENT'S STATEMENT (success={res['success']}): "
+            f"{res['summary']}\n\nEVIDENCE (tools used):\n{evidence or '(none)'}"
+            + ("\n\nLORENZO'S MESSAGES RECEIVED DURING EXECUTION:\n" + "\n".join(f"- {r}" for r in replies) if replies else "")
         )
         try:
             v = await b.llm.chat_json(
@@ -264,7 +264,7 @@ class Orchestrator:
                 agent=cid, purpose="critique", temperature=0.2, max_tokens=500,
             )
         except LLMError:
-            v = {"verdict": "pass" if res["success"] else "fail", "score": 0.5, "feedback": "critic non disponibile"}
+            v = {"verdict": "pass" if res["success"] else "fail", "score": 0.5, "feedback": "critic unavailable"}
         await b.bus.publish("agent.end", cid, success=v.get("verdict") == "pass", summary=str(v.get("feedback", ""))[:300], steps=1)
         await b.bus.publish("goal.verdict", cid, goal_id=goal["id"], **{k: v.get(k) for k in ("verdict", "score", "feedback")})
         return v
@@ -272,16 +272,16 @@ class Orchestrator:
     # ------------------------------------------------------------ reflection
     async def reflect(self) -> None:
         b = self.b
-        await b.bus.publish("agent.spawn", "reflector", role="reflector", parent=None, goal_id=None, task="riflessione")
+        await b.bus.publish("agent.spawn", "reflector", role="reflector", parent=None, goal_id=None, task="reflection")
         prompt = (
-            f"SELF-MODEL ATTUALE:\n{json.dumps(b.selfmodel.get(), ensure_ascii=False)}\n\nOBIETTIVI:\n{b.goals.summary()}\n\n"
-            f"METRICHE: {json.dumps(b.selfmodel.metrics())}\n\nGIORNALE RECENTE:\n"
+            f"CURRENT SELF-MODEL:\n{json.dumps(b.selfmodel.get(), ensure_ascii=False)}\n\nGOALS:\n{b.goals.summary()}\n\n"
+            f"METRICS: {json.dumps(b.selfmodel.metrics())}\n\nRECENT JOURNAL:\n"
             + "\n".join(j["text"][:200] for j in b.memory.journal_recent(6))
-            + f"\n\nCHAT:\n{self._recent_chat(6)}\n\nTOOL CREATI: {', '.join(b.tools.custom()) or 'nessuno'}"
-            + "\n\nERRORI RECENTI DEI TOOL (risolti=True se poi corretti):\n"
-            + "\n".join(f"- {f['tool']} {f['args']} -> {f['error'][:120]} (risolti={f['resolved']})" for f in b.lessons.recent_failures(10))
-            + f"\n\nLEZIONI GIA' APPRESE:\n{b.lessons.render(10) or '(nessuna)'}"
-            + '\n\nAggiungi al JSON il campo "lessons": ["regola generale e concreta per non ripetere gli errori sopra", ...] (max 3, nuove).'
+            + f"\n\nCHAT:\n{self._recent_chat(6)}\n\nTOOLS CREATED: {', '.join(b.tools.custom()) or 'none'}"
+            + "\n\nRECENT TOOL ERRORS (resolved=True if later fixed):\n"
+            + "\n".join(f"- {f['tool']} {f['args']} -> {f['error'][:120]} (resolved={f['resolved']})" for f in b.lessons.recent_failures(10))
+            + f"\n\nLESSONS ALREADY LEARNED:\n{b.lessons.render(10) or '(none)'}"
+            + '\n\nAdd to the JSON the field "lessons": ["general, concrete rule to avoid repeating the errors above", ...] (max 3, new ones).'
         )
         try:
             out = await b.llm.chat_json(
@@ -314,16 +314,16 @@ class Orchestrator:
         truth = b.db.one("SELECT title,status,result FROM goals WHERE status IN ('done','failed') ORDER BY updated DESC LIMIT 1")
         if not truth:
             return
-        ctx = f"{b.selfmodel.render()}\n\nGiornale:\n" + "\n".join(j["text"][:200] for j in b.memory.journal_recent(5))
+        ctx = f"{b.selfmodel.render()}\n\nJournal:\n" + "\n".join(j["text"][:200] for j in b.memory.journal_recent(5))
         try:
             ans = await b.llm.chat_json(
-                [{"role": "system", "content": "Sei Brain. Rispondi usando SOLO la tua conoscenza di te stesso qui sotto, senza inventare.\n" + ctx},
-                 {"role": "user", "content": 'Qual e\' l\'ultimo obiettivo che hai concluso e com\'e\' andato? Rispondi JSON {"answer": "..."}'}],
+                [{"role": "system", "content": "You are Brain. Answer using ONLY your knowledge of yourself below, without making anything up.\n" + ctx},
+                 {"role": "user", "content": 'What is the last goal you concluded and how did it go? Reply with JSON {"answer": "..."}'}],
                 agent="reflector", purpose="probe", temperature=0.2, max_tokens=300,
             )
             judge = await b.llm.chat_json(
-                [{"role": "system", "content": 'Sei un valutatore severo. Dato il fatto reale e la risposta, dai un punteggio 0-1 di correttezza. JSON {"score": 0-1}'},
-                 {"role": "user", "content": f"FATTO: {json.dumps(truth, ensure_ascii=False)}\nRISPOSTA: {ans.get('answer', '')}"}],
+                [{"role": "system", "content": 'You are a strict judge. Given the real fact and the answer, give a correctness score 0-1. JSON {"score": 0-1}'},
+                 {"role": "user", "content": f"FACT: {json.dumps(truth, ensure_ascii=False)}\nANSWER: {ans.get('answer', '')}"}],
                 agent="critic", purpose="probe-judge", temperature=0.0, max_tokens=100,
             )
         except LLMError:
@@ -336,17 +336,17 @@ class Orchestrator:
     async def evolve(self) -> None:
         b = self.b
         for role in await b.evolution.check_rollbacks():
-            await b.bus.publish("system.log", None, level="warn", text=f"Rollback prompt '{role}' per regressione")
+            await b.bus.publish("system.log", None, level="warn", text=f"Prompt '{role}' rolled back after a regression")
         improvement = b.db.kv_get("pending_improvement")
         if not improvement:
             return
         b.db.kv_set("pending_improvement", None)
         cur = "\n\n".join(f"--- prompt {r} ---\n{b.evolution.prompt(r)}" for r in ("planner", "executor"))
         task = (
-            f"Miglioramento suggerito dal Reflector: {improvement}\n\nSe e' sensato, applicalo con UNA modifica: propose_prompt (ruolo "
-            f"planner/executor/researcher/engineer/critic/reflector, mantenendo il contratto JSON) oppure propose_hook (prioritize/context, "
-            f"con test pytest che importano da /evolvable/hooks via sys.path.insert). Se non e' sensato, concludi con finish success=false.\n\n"
-            f"Stato attuale:\n{cur}\n\nHook prioritize.py:\n{(b.settings.evolvable_dir / 'hooks' / 'prioritize.py').read_text()[:1500]}"
+            f"Improvement suggested by the Reflector: {improvement}\n\nIf it makes sense, apply it with ONE change: propose_prompt (role "
+            f"planner/executor/researcher/engineer/critic/reflector, keeping the JSON contract) or propose_hook (prioritize/context, "
+            f"with pytest tests that import from /evolvable/hooks via sys.path.insert). If it does not make sense, conclude with finish success=false.\n\n"
+            f"Current state:\n{cur}\n\nHook prioritize.py:\n{(b.settings.evolvable_dir / 'hooks' / 'prioritize.py').read_text()[:1500]}"
         )
         res = await self.run_agent(Agent(b, "evolver", task, None, max_steps=6))
         b.memory.journal_add("evolution", f"{improvement[:200]} -> {res['summary'][:200]}")
@@ -354,7 +354,7 @@ class Orchestrator:
     # ----------------------------------------------------------------- chat
     def _recent_chat(self, n: int) -> str:
         evs = self.b.bus.recent(n, ["chat.message"])
-        return "\n".join(f"{e['data'].get('role')}: {e['data'].get('text', '')[:200]}" for e in evs) or "(nessuna)"
+        return "\n".join(f"{e['data'].get('role')}: {e['data'].get('text', '')[:200]}" for e in evs) or "(none)"
 
     async def ask(self, agent: Agent, text: str, wait: int) -> str | None:
         """Send a question to Lorenzo and wait (bounded) for his reply; None if he does not answer in time."""
@@ -384,12 +384,12 @@ class Orchestrator:
         waiting = [q for q in self.questions if not q["fut"].done()]
         for q in waiting:
             q["fut"].set_result(text)
-            facts.append(f"risposta consegnata all'agente {q['agent_id']} che la stava aspettando")
+            facts.append(f"reply delivered to agent {q['agent_id']}, which was waiting for it")
         delivered = {q["agent_id"] for q in waiting}
         for aid, ag in self.live.items():
             if aid not in delivered and ag.role != "evolver":
                 ag.inbox.append(("Lorenzo", text))
-                facts.append(f"messaggio inoltrato all'agente {aid} (lo leggera' al prossimo passo)")
+                facts.append(f"message forwarded to agent {aid} (it will read it at its next step)")
 
         lq = self.last_question
         reopened = None
@@ -397,32 +397,32 @@ class Orchestrator:
             lq["answered"] = True
             g = b.goals.get(lq["goal_id"]) if lq["goal_id"] else None
             if g and g["status"] in ("failed", "pending"):
-                await b.goals.reopen(g["id"], f"Risposta di Lorenzo alla tua domanda '{lq['text'][:150]}': {text}")
+                await b.goals.reopen(g["id"], f"Lorenzo's reply to your question '{lq['text'][:150]}': {text}")
                 reopened = g["id"]
-                facts.append(f"riaperto l'obiettivo #{g['id']} '{g['title'][:60]}' con la sua risposta allegata")
+                facts.append(f"reopened goal #{g['id']} '{g['title'][:60]}' with his reply attached")
         return facts, reopened
 
     async def handle_user_message(self, text: str) -> None:
         """Route Lorenzo's message to whoever needs it, then answer honestly about what actually happened."""
         b = self.b
         facts, reopened = await self.route_user_message(text)
-        asyncio.create_task(b.memory.add("user", f"Lorenzo ha detto: {text}", ["user"], 0.9))  # off the reply's critical path
+        asyncio.create_task(b.memory.add("user", f"Lorenzo said: {text}", ["user"], 0.9))  # off the reply's critical path
         wiki_ctx = await b.wiki.context(text, 3, 500)
 
         prompt = (
-            "Sei Brain e stai parlando con Lorenzo, il tuo creatore. Rispondi in modo breve, diretto e ONESTO, nella sua lingua.\n"
-            "REGOLA: non dire mai di aver eseguito, misurato, salvato o integrato qualcosa. Puoi solo riferire i FATTI qui sotto "
-            "e dire cosa farai nei prossimi cicli (che e' una promessa, non un risultato).\n"
-            f"FATTI REALMENTE ACCADUTI: {'; '.join(facts) or 'nessuna azione ancora eseguita'}\n\n"
-            f"SELF-MODEL:\n{b.selfmodel.render()}\n\nOBIETTIVI:\n{b.goals.summary(10)}\n\nCHAT:\n{self._recent_chat(8)}\n\n"
-            + (f"WIKI (pagine pertinenti, conoscenza gia' compilata):\n{wiki_ctx}\n\n" if wiki_ctx else "") +
-            f'Lorenzo: {text}\n\nRispondi SOLO JSON: {{"reply": "...", "new_goal": null | {{"title": "...", "description": "...", "priority": 0-1}}}}. '
-            "Crea new_goal solo se Lorenzo chiede qualcosa di nuovo e nessun obiettivo esistente lo copre."
+            "You are Brain and you are talking with Lorenzo, your creator. Reply briefly, directly and HONESTLY, in the language he writes in.\n"
+            "RULE: never say you executed, measured, saved or integrated something. You may only report the FACTS below "
+            "and say what you will do in the next cycles (which is a promise, not a result).\n"
+            f"FACTS THAT ACTUALLY HAPPENED: {'; '.join(facts) or 'no action performed yet'}\n\n"
+            f"SELF-MODEL:\n{b.selfmodel.render()}\n\nGOALS:\n{b.goals.summary(10)}\n\nCHAT:\n{self._recent_chat(8)}\n\n"
+            + (f"WIKI (relevant pages, already compiled knowledge):\n{wiki_ctx}\n\n" if wiki_ctx else "") +
+            f'Lorenzo: {text}\n\nReply ONLY with JSON: {{"reply": "...", "new_goal": null | {{"title": "...", "description": "...", "priority": 0-1}}}}. '
+            "Create new_goal only if Lorenzo asks for something new and no existing goal covers it."
         )
         try:
             out = await b.llm.chat_json([{"role": "user", "content": prompt}], agent="voice", purpose="chat", temperature=0.5, max_tokens=900, priority=0)
         except LLMError as e:
-            await b.bus.publish("chat.message", None, role="brain", text=f"(non riesco a rispondere: {e})")
+            await b.bus.publish("chat.message", None, role="brain", text=f"(I cannot reply: {e})")
             return
         ng = out.get("new_goal")
         if isinstance(ng, dict) and ng.get("title") and not reopened:
@@ -430,10 +430,10 @@ class Orchestrator:
                 str(ng["title"]), str(ng.get("description", "")), (b.goals.root() or {}).get("id"),
                 max(0.85, _num(ng.get("priority"), 0.9)), 0.5,
             )
-            facts.append(f"creato il nuovo obiettivo #{gid}")
-        note = f"\n\n[azioni reali: {'; '.join(facts)}]" if facts else ""
+            facts.append(f"created new goal #{gid}")
+        note = f"\n\n[real actions: {'; '.join(facts)}]" if facts else ""
         await b.bus.publish("chat.message", None, role="brain", text=str(out.get("reply", "")) + note)
-        b.memory.journal_add("dialogue", f"Lorenzo: {text[:200]} | Io: {str(out.get('reply', ''))[:200]}")
+        b.memory.journal_add("dialogue", f"Lorenzo: {text[:200]} | Me: {str(out.get('reply', ''))[:200]}")
 
 
 def _num(v, default: float) -> float:

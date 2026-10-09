@@ -8,12 +8,12 @@ def test_plain_json():
 
 
 def test_fenced_with_think_and_trailing_comma():
-    text = '<think>ragiono {"x": 0}</think>\nEcco:\n```json\n{"action": "finish", "args": {"success": true,},}\n```'
+    text = '<think>thinking {"x": 0}</think>\nHere:\n```json\n{"action": "finish", "args": {"success": true,},}\n```'
     assert extract_json(text)["action"] == "finish"
 
 
 def test_json_embedded_in_prose_with_braces_in_strings():
-    text = 'Certo! {"thought": "uso { e } nel testo", "action": "x"} fine.'
+    text = 'Sure! {"thought": "I use { and } in the text", "action": "x"} end.'
     assert extract_json(text)["action"] == "x"
 
 
@@ -25,9 +25,9 @@ def test_raw_newlines_inside_strings_are_accepted():
 
 def test_unterminated_think_block_raises():
     with pytest.raises(ValueError):
-        extract_json('<think>non finisco mai {"a": 1}')
+        extract_json('<think>I never finish {"a": 1}')
 
 
 def test_no_json_raises():
     with pytest.raises(ValueError):
-        extract_json("nessun json qui")
+        extract_json("no json here")

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api'
 import { useBrain } from '../store'
 
-const time = (ts: number) => new Date(ts * 1000).toLocaleTimeString('it-IT')
+const time = (ts: number) => new Date(ts * 1000).toLocaleTimeString('en-GB')
 
 function summary(e: { type: string; data: Record<string, any> }): string {
   const d = e.data
@@ -15,11 +15,11 @@ function summary(e: { type: string; data: Record<string, any> }): string {
     case 'goal.update': return `#${d.id} [${d.status}] ${d.title}`
     case 'chat.message': return `${d.role}: ${d.text}`
     case 'system.log': return d.text
-    case 'tool.created': return `${d.name} (${d.passed ? 'test OK' : 'test falliti'})`
+    case 'tool.created': return `${d.name} (${d.passed ? 'tests OK' : 'tests failed'})`
     case 'evolution': return `${d.kind} ${d.target}: ${d.status} — ${d.reason}`
-    case 'introspection.probe': return `punteggio ${d.score}: ${d.answer}`
-    case 'lesson.learned': return `${d.new ? 'NUOVA' : `x${d.count}`} [${d.kind}] ${d.text}`
-    case 'cycle.start': return `ciclo ${d.cycle}`
+    case 'introspection.probe': return `score ${d.score}: ${d.answer}`
+    case 'lesson.learned': return `${d.new ? 'NEW' : `x${d.count}`} [${d.kind}] ${d.text}`
+    case 'cycle.start': return `cycle ${d.cycle}`
     default: return JSON.stringify(d).slice(0, 160)
   }
 }
@@ -56,13 +56,13 @@ export function Chat() {
   return (
     <div className="chat">
       <div className="msgs" ref={ref}>
-        {!chat.length && <div className="empty">Scrivi a Brain: ti risponde e può trasformare le tue richieste in obiettivi.</div>}
+        {!chat.length && <div className="empty">Write to Brain: it replies and can turn your requests into goals.</div>}
         {chat.map((m, i) => <div key={i} className={`msg ${m.role}`}>{m.text}</div>)}
-        {waiting && <div className="msg brain"><span className="spin" /> sta pensando…</div>}
+        {waiting && <div className="msg brain"><span className="spin" /> is thinking…</div>}
       </div>
       <div className="composer">
-        <input value={text} placeholder="Parla con Brain…" onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()} />
-        <button className="btn go" disabled={sending || !text.trim()} onClick={send}>Invia</button>
+        <input value={text} placeholder="Talk to Brain…" onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()} />
+        <button className="btn go" disabled={sending || !text.trim()} onClick={send}>Send</button>
       </div>
     </div>
   )
@@ -72,7 +72,7 @@ export function Journal() {
   const journal = useBrain((s) => s.journal)
   return (
     <div className="scroll">
-      {!journal.length && <div className="empty">Il giornale si riempie con le riflessioni di Brain.</div>}
+      {!journal.length && <div className="empty">The journal fills up with Brain's reflections.</div>}
       {[...journal].reverse().map((j) => <div className="entry" key={j.id}><small>{j.kind} · {time(j.ts)}</small>{j.text}</div>)}
     </div>
   )
@@ -91,21 +91,21 @@ export function ToolsView() {
   const head = { margin: '4px 0 8px', fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#7f89b8' } as const
   return (
     <div className="scroll">
-      <div style={head}>Tool creati da Brain ({custom.length})</div>
-      {!custom.length && <div className="empty" style={{ padding: '4px 0 12px' }}>Nessun tool creato ancora: Brain li costruisce, li collauda in sandbox e li registra qui.</div>}
+      <div style={head}>Tools created by Brain ({custom.length})</div>
+      {!custom.length && <div className="empty" style={{ padding: '4px 0 12px' }}>No tools created yet: Brain builds them, tests them in the sandbox and registers them here.</div>}
       <div className="cols">
         {custom.map((t) => (
           <div className="card" key={t.name}>
-            <b>{t.name}</b> <small style={{ display: 'inline' }}>[{t.status}] chiamate {t.calls} · errori {t.failures}</small>
+            <b>{t.name}</b> <small style={{ display: 'inline' }}>[{t.status}] calls {t.calls} · errors {t.failures}</small>
             <small>{t.description}</small>
           </div>
         ))}
       </div>
-      <div style={{ ...head, marginTop: 14 }}>Tool integrati ({builtin.length})</div>
+      <div style={{ ...head, marginTop: 14 }}>Built-in tools ({builtin.length})</div>
       <div className="cols">
         {builtin.map((t) => (
           <div className="card" key={t.name}>
-            <b style={{ color: '#60a5fa' }}>{t.name}</b> <small style={{ display: 'inline' }}>usi {usage[t.name] ?? 0}</small>
+            <b style={{ color: '#60a5fa' }}>{t.name}</b> <small style={{ display: 'inline' }}>uses {usage[t.name] ?? 0}</small>
             <small>{t.description}</small>
           </div>
         ))}
@@ -118,10 +118,10 @@ export function LessonsView() {
   const lessons = useBrain((s) => s.lessons)
   return (
     <div className="scroll">
-      {!lessons.length && <div className="empty">Quando un tool fallisce e poi viene corretto, o un obiettivo fallisce, Brain ne ricava una lezione e la usa nei prompt successivi.</div>}
+      {!lessons.length && <div className="empty">When a tool fails and is then fixed, or a goal fails, Brain derives a lesson from it and uses it in later prompts.</div>}
       {lessons.map((l) => (
         <div className="entry" key={l.text}>
-          <small>{l.kind} · visto {l.count}× · {time(l.ts)}</small>{l.text}
+          <small>{l.kind} · seen {l.count}× · {time(l.ts)}</small>{l.text}
         </div>
       ))}
     </div>
@@ -132,7 +132,7 @@ export function EvolutionView() {
   const evs = useBrain((s) => s.evolutions)
   return (
     <div className="scroll">
-      {!evs.length && <div className="empty">Nessuna evoluzione ancora: prompt e hook vengono modificati solo con test e rollback.</div>}
+      {!evs.length && <div className="empty">No evolution yet: prompts and hooks are changed only with tests and rollback.</div>}
       {evs.map((e) => (
         <div className="entry" key={e.id}>
           <small>{e.kind} · {e.target} · {time(e.ts)}</small>

@@ -63,27 +63,27 @@ async def test_stop_returns_running_goals_to_the_queue(brain):
 
 async def test_spawn_many_validates_input(brain):
     parent = Agent(brain, "executor", "t")
-    assert (await brain.orchestrator.spawn_many(parent, [])).startswith("ERRORE")
-    assert (await brain.orchestrator.spawn_many(parent, ["x", {"role": "executor"}])).startswith("ERRORE")
+    assert (await brain.orchestrator.spawn_many(parent, [])).startswith("ERROR")
+    assert (await brain.orchestrator.spawn_many(parent, ["x", {"role": "executor"}])).startswith("ERROR")
 
 
 async def test_user_reply_reopens_failed_goal_and_reaches_waiting_agent(brain):
     root = await brain.goals.add("root", "", None, 1.0, None, status="active")
-    gid = await brain.goals.add("Benchmark con Lorenzo", "chiedi una soglia", root, 0.5, 0.5)
-    await brain.goals.set_status(gid, "failed", "nessuna risposta")
+    gid = await brain.goals.add("Benchmark with Lorenzo", "ask for a threshold", root, 0.5, 0.5)
+    await brain.goals.set_status(gid, "failed", "no reply")
     agent = Agent(brain, "executor", "t", goal_id=gid)
 
     # a question nobody is waiting for any more: the reply must reopen the goal
-    asyncio.create_task(brain.orchestrator.ask(agent, "Quale soglia?", 0))
+    asyncio.create_task(brain.orchestrator.ask(agent, "Which threshold?", 0))
     await asyncio.sleep(0.2)
-    facts, reopened = await brain.orchestrator.route_user_message("soglia 0.99")
+    facts, reopened = await brain.orchestrator.route_user_message("threshold 0.99")
     assert reopened == gid and brain.goals.get(gid)["status"] == "pending"
-    assert "soglia 0.99" in brain.goals.get(gid)["description"]
-    assert any("riaperto" in f for f in facts)
+    assert "threshold 0.99" in brain.goals.get(gid)["description"]
+    assert any("reopened" in f for f in facts)
 
     # an agent blocked in ask_user receives the reply as the tool result
-    waiter = asyncio.create_task(brain.orchestrator.ask(agent, "Altra domanda?", 30))
+    waiter = asyncio.create_task(brain.orchestrator.ask(agent, "Another question?", 30))
     await asyncio.sleep(0.3)
-    facts, _ = await brain.orchestrator.route_user_message("risposta due")
-    assert await asyncio.wait_for(waiter, 5) == "risposta due"
-    assert any("consegnata" in f for f in facts)
+    facts, _ = await brain.orchestrator.route_user_message("reply two")
+    assert await asyncio.wait_for(waiter, 5) == "reply two"
+    assert any("delivered" in f for f in facts)

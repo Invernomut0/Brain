@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../api'
 import { useBrain } from '../store'
 
-const when = (ts: number) => new Date(ts * 1000).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+const when = (ts: number) => new Date(ts * 1000).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 
 const KIND_COLOR: Record<string, string> = { fact: '#22d3ee', insight: '#fde047', user: '#a5b4fc', outcome: '#34f5a0' }
 const kindColor = (k: string) => KIND_COLOR[k] ?? '#94a3b8'
@@ -38,8 +38,8 @@ export function MemoriesView() {
   return (
     <div className="mem">
       <div className="mem-bar">
-        <input value={q} placeholder="Cerca nei ricordi…" onChange={(e) => setQ(e.target.value)} />
-        <button className={`pill ${kind === null ? 'on' : ''}`} onClick={() => setKind(null)}>tutti {stored}</button>
+        <input value={q} placeholder="Search memories…" onChange={(e) => setQ(e.target.value)} />
+        <button className={`pill ${kind === null ? 'on' : ''}`} onClick={() => setKind(null)}>all {stored}</button>
         {Object.entries(kinds).map(([k, n]) => (
           <button key={k} className={`pill ${kind === k ? 'on' : ''}`} style={{ ['--c' as string]: kindColor(k) }} onClick={() => setKind(kind === k ? null : k)}>{k} {n}</button>
         ))}
@@ -48,13 +48,13 @@ export function MemoriesView() {
       <div className="scroll">
         {error && <div className="empty" style={{ color: 'var(--red)' }}>{error}</div>}
         {!error && !items.length && !loading && (
-          <div className="empty">{debounced || kind ? 'Nessun ricordo corrisponde alla ricerca.' : 'Nessun ricordo ancora: Brain li salva con "remember", dalle riflessioni e da ciò che gli dici in chat.'}</div>
+          <div className="empty">{debounced || kind ? 'No memory matches the search.' : 'No memories yet: Brain saves them with "remember", from its reflections and from what you tell it in chat.'}</div>
         )}
         {items.map((m) => (
           <div className="entry" key={m.id}>
             <small>
-              <span className="kind" style={{ ['--c' as string]: kindColor(m.kind) }}>{m.kind}</span> · {when(m.ts)} · importanza {Math.round(m.importance * 100)}%
-              {m.score !== undefined && <> · rilevanza {m.score.toFixed(2)}</>}
+              <span className="kind" style={{ ['--c' as string]: kindColor(m.kind) }}>{m.kind}</span> · {when(m.ts)} · importance {Math.round(m.importance * 100)}%
+              {m.score !== undefined && <> · relevance {m.score.toFixed(2)}</>}
               {m.tags.length > 0 && <> · {m.tags.join(', ')}</>}
             </small>
             {m.text}
@@ -97,44 +97,44 @@ export function StatusView() {
   return (
     <div className="scroll status">
       <div className="status-head">
-        <div className="status-pct"><b>{pct}%</b><span>verso l'obiettivo</span></div>
+        <div className="status-pct"><b>{pct}%</b><span>toward the goal</span></div>
         <div className="status-main">
           <div className="status-goal" title={f?.goal}>{f?.goal ?? '…'}</div>
           <div className="bar big"><i style={{ width: `${pct}%` }} /></div>
           <small>
-            {r ? (r.source === 'llm' ? 'Stima di Brain basata sui dati qui sotto' : 'Indicatore misurabile (indice di consapevolezza): il modello non era disponibile') : 'Report non ancora generato'}
-            {r && <> · aggiornato {when(r.ts)}</>}{data?.stale && r && ' · i dati sono cambiati'}
+            {r ? (r.source === 'llm' ? "Brain's estimate based on the data below" : 'Measurable indicator (awareness index): the model was not available') : 'Report not generated yet'}
+            {r && <> · updated {when(r.ts)}</>}{data?.stale && r && ' · the data has changed'}
           </small>
         </div>
-        <button className="btn" disabled={busy} onClick={refresh}>{busy ? <><span className="spin" /> Sto riassumendo…</> : '↻ Aggiorna'}</button>
+        <button className="btn" disabled={busy} onClick={refresh}>{busy ? <><span className="spin" /> Summarising…</> : '↻ Refresh'}</button>
       </div>
       {error && <div className="empty" style={{ color: 'var(--red)' }}>{error}</div>}
 
       {r ? (
         <ol className="status-lines">{r.lines.map((l, i) => <li key={i}>{l}</li>)}</ol>
       ) : (
-        <div className="empty">{busy ? 'Brain sta riassumendo il progetto…' : 'Premi Aggiorna per far raccontare a Brain il suo stato.'}</div>
+        <div className="empty">{busy ? 'Brain is summarising the project…' : 'Press Refresh to have Brain tell its status.'}</div>
       )}
 
       {f && (
         <div className="status-stats">
-          <div><b style={{ color: 'var(--green)' }}>{f.goals.done}</b>riusciti</div>
-          <div><b style={{ color: 'var(--red)' }}>{f.goals.failed}</b>falliti</div>
-          <div><b style={{ color: 'var(--amber)' }}>{f.goals.pending + f.goals.active}</b>in coda</div>
-          <div><b>{f.metrics.tools}</b>tool</div>
-          <div><b>{f.metrics.memories}</b>ricordi</div>
-          <div><b>{f.metrics.lessons}</b>lezioni</div>
-          <div><b>{f.metrics.awareness_index.toFixed(2)}</b>indice</div>
+          <div><b style={{ color: 'var(--green)' }}>{f.goals.done}</b>succeeded</div>
+          <div><b style={{ color: 'var(--red)' }}>{f.goals.failed}</b>failed</div>
+          <div><b style={{ color: 'var(--amber)' }}>{f.goals.pending + f.goals.active}</b>queued</div>
+          <div><b>{f.metrics.tools}</b>tools</div>
+          <div><b>{f.metrics.memories}</b>memories</div>
+          <div><b>{f.metrics.lessons}</b>lessons</div>
+          <div><b>{f.metrics.awareness_index.toFixed(2)}</b>index</div>
         </div>
       )}
 
       {r && (
         <div className="cols status-cols">
-          <div className="card"><b style={{ color: 'var(--green)' }}>Fatto</b>
-            <ul>{r.done.length ? r.done.map((d, i) => <li key={i}>{d}</li>) : <li className="dim">nulla di concreto ancora</li>}</ul>
+          <div className="card"><b style={{ color: 'var(--green)' }}>Done</b>
+            <ul>{r.done.length ? r.done.map((d, i) => <li key={i}>{d}</li>) : <li className="dim">nothing concrete yet</li>}</ul>
           </div>
-          <div className="card"><b style={{ color: 'var(--amber)' }}>Manca</b>
-            <ul>{r.missing.length ? r.missing.map((d, i) => <li key={i}>{d}</li>) : <li className="dim">non indicato</li>}</ul>
+          <div className="card"><b style={{ color: 'var(--amber)' }}>Missing</b>
+            <ul>{r.missing.length ? r.missing.map((d, i) => <li key={i}>{d}</li>) : <li className="dim">not specified</li>}</ul>
           </div>
         </div>
       )}

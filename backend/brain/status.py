@@ -15,13 +15,13 @@ if TYPE_CHECKING:
 KV_KEY = "status_report"
 LINES = 5
 
-PROMPT = """Sei Brain e stai facendo il punto onesto sul tuo stato. Usa SOLO i dati forniti, senza inventare.
-Rispondi SOLO con un oggetto JSON:
-{"lines": [5 stringhe, una per riga, ciascuna max 140 caratteri, che raccontano a Lorenzo il progetto: da dove sei partito, cosa hai fatto, cosa funziona, cosa non funziona, cosa farai ora],
- "progress": numero 0-100 = tua stima onesta dell'avanzamento verso l'OBIETTIVO PRINCIPALE (non il numero di task fatti),
- "done": [3-5 risultati concreti gia' ottenuti],
- "missing": [3-5 passi concreti che mancano per raggiungere l'obiettivo]}
-L'indice di consapevolezza e' solo un proxy misurabile, non una prova di coscienza."""
+PROMPT = """You are Brain and you are taking an honest look at your own status. Use ONLY the data provided, do not make things up.
+Reply ONLY with a JSON object:
+{"lines": [5 strings, one per line, each max 140 characters, telling Lorenzo about the project: where you started, what you did, what works, what does not work, what you will do next],
+ "progress": number 0-100 = your honest estimate of the progress toward the MAIN GOAL (not the number of tasks done),
+ "done": [3-5 concrete results already obtained],
+ "missing": [3-5 concrete steps still missing to reach the goal]}
+The awareness index is only a measurable proxy, not proof of consciousness."""
 
 
 def _clip(s: object, n: int) -> str:
@@ -100,11 +100,11 @@ class StatusReport:
         """Deterministic report used when the model is unavailable or answers badly."""
         g, m = f["goals"], f["metrics"]
         lines = [
-            f"Obiettivo: {_clip(f['goal'], 120)}",
-            f"Stato {f['state']}, ciclo {f['cycle']}: {g['done']} obiettivi riusciti, {g['failed']} falliti, {g['pending']} in coda.",
-            f"Ho {m['tools']} tool creati, {m['memories']} ricordi, {m['lessons']} lezioni e {m['evolutions_applied']} evoluzioni applicate.",
-            f"Il tasso di successo e' {m['success_rate']:.0%}; l'indice di consapevolezza (proxy misurabile) e' {m['awareness_index']:.2f}.",
-            f"Prossimo: {f['next'][0]}" if f["next"] else "Nessun obiettivo in coda: il planner ne proporra' di nuovi.",
+            f"Goal: {_clip(f['goal'], 120)}",
+            f"State {f['state']}, cycle {f['cycle']}: {g['done']} goals succeeded, {g['failed']} failed, {g['pending']} queued.",
+            f"I have {m['tools']} tools created, {m['memories']} memories, {m['lessons']} lessons and {m['evolutions_applied']} evolutions applied.",
+            f"The success rate is {m['success_rate']:.0%}; the awareness index (measurable proxy) is {m['awareness_index']:.2f}.",
+            f"Next: {f['next'][0]}" if f["next"] else "No goal in the queue: the planner will propose new ones.",
         ]
         return {
             "lines": lines, "source": "proxy", "progress": round(m["awareness_index"] * 100, 1),

@@ -1,3 +1,3 @@
 """Brain: autonomous, self-evolving multi-agent system."""
 
-__version__ = "0.1.20"
+__version__ = "0.1.21"

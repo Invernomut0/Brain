@@ -16,21 +16,21 @@ export function ResetDialog({ onClose }: { onClose: () => void }) {
   return createPortal(
     <div className="modal-back" onClick={() => !busy && onClose()}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h2>Azzera tutto</h2>
-        <p>Riporta Brain a un'installazione nuova e vuota. Verranno eliminati in modo definitivo:</p>
+        <h2>Reset everything</h2>
+        <p>Return Brain to a brand-new, empty installation. The following will be permanently deleted:</p>
         <ul>
-          <li>database: obiettivi, memoria, giornale, lezioni, self-model, metriche, eventi</li>
-          <li>tool creati e tutti i file del workspace della sandbox (il container viene ricreato)</li>
-          <li>prompt e hook evoluti: tornano ai valori di fabbrica (la cronologia git resta)</li>
+          <li>database: goals, memory, journal, lessons, self-model, metrics, events</li>
+          <li>created tools and all the files of the sandbox workspace (the container is recreated)</li>
+          <li>evolved prompts and hooks: they return to the factory values (the git history stays)</li>
         </ul>
-        <p>Gli agenti in corso vengono interrotti. Dopo il reset Brain resta fermo: premi ▶ Avvia per ripartire. L'obiettivo principale torna a quello di fabbrica.</p>
-        <label>Scrivi <b>RESET</b> per confermare
+        <p>Running agents are interrupted. After the reset Brain stays stopped: press ▶ Start to run it again. The main goal returns to the factory one.</p>
+        <label>Type <b>RESET</b> to confirm
           <input autoFocus value={text} disabled={busy} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && text === 'RESET' && run()} />
         </label>
         {err && <div className="modal-err">{err}</div>}
         <div className="modal-actions">
-          <button className="btn" disabled={busy} onClick={onClose}>Annulla</button>
-          <button className="btn danger" disabled={busy || text !== 'RESET'} onClick={run}>{busy ? <><span className="spin" /> Azzeramento…</> : 'Azzera tutto'}</button>
+          <button className="btn" disabled={busy} onClick={onClose}>Cancel</button>
+          <button className="btn danger" disabled={busy || text !== 'RESET'} onClick={run}>{busy ? <><span className="spin" /> Resetting…</> : 'Reset everything'}</button>
         </div>
       </div>
     </div>,

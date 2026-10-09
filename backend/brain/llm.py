@@ -162,7 +162,7 @@ class LLMClient:
         """Concurrency slot; tells the UI when a request waits behind others or behind a chat reply."""
         self.queued += 1
         if self._gate.blocked_for(prio):
-            detail = "in pausa: precedenza alla chat" if prio > CHAT_PRIORITY and self._gate.chat_pending else "in coda su LM Studio"
+            detail = "paused: priority to the chat" if prio > CHAT_PRIORITY and self._gate.chat_pending else "queued on LM Studio"
             await self.bus.publish("agent.state", agent, state="queued", detail=detail)
         try:
             await self._gate.acquire(prio)
@@ -206,7 +206,7 @@ class LLMClient:
             self.model = chat[0]
             await self.bus.publish(
                 "system.log", None, level="warn",
-                text=f"Modello '{self.s.llm_model}' (BRAIN_LLM_MODEL) non caricato in LM Studio: uso '{self.model}'",
+                text=f"Model '{self.s.llm_model}' (BRAIN_LLM_MODEL) is not loaded in LM Studio: using '{self.model}'",
             )
         else:
             raise LLMError("LM Studio exposes no chat model")
@@ -238,10 +238,10 @@ class LLMClient:
     async def _recover(self, err: str, agent: str | None, attempt: int) -> None:
         await self.bus.publish(
             "system.log", agent, level="warn",
-            text=f"{err} - ricarico il modello e riprovo ({attempt}/{MAX_RECOVERIES})",
+            text=f"{err} - reloading the model and retrying ({attempt}/{MAX_RECOVERIES})",
         )
         if agent == "voice" and attempt == 1:
-            await self.bus.publish("chat.message", None, role="brain", text="LM Studio ha scaricato il modello: lo sto ricaricando, poi ti rispondo.")
+            await self.bus.publish("chat.message", None, role="brain", text="LM Studio unloaded the model: I am reloading it, then I will answer you.")
         if not await self.ensure_loaded():
             await asyncio.sleep(min(10 * attempt, 40))
 
@@ -400,11 +400,11 @@ class LLMClient:
                     kw["max_tokens"] = min(int(kw.get("max_tokens", 1500) * 1.6), 6000)
                     continue
                 msgs = msgs + [
-                    {"role": "assistant", "content": strip_thinking(res.text)[:1500] or "(risposta vuota)"},
+                    {"role": "assistant", "content": strip_thinking(res.text)[:1500] or "(empty reply)"},
                     {"role": "user", "content": (
-                        "Risposta non valida (nessun JSON parsabile). Rispondi di nuovo SOLO con UN oggetto JSON: nessun testo prima o dopo, "
-                        "nessun blocco ```. Dentro le stringhe usa \\n per andare a capo e \\\" per le virgolette (mai a capo letterali); "
-                        "il codice multilinea va in una stringa con \\n."
+                        "Invalid reply (no parsable JSON). Reply again with ONLY ONE JSON object: no text before or after, "
+                        "no ``` block. Inside strings use \\n for line breaks and \\\" for quotes (never literal line breaks); "
+                        "multi-line code goes in a single string with \\n."
                     )},
                 ]
         raise LLMError(f"model never produced valid JSON ({last_err})")

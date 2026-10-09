@@ -47,10 +47,10 @@ class Agent:
         names = ROLE_TOOLS.get(self.role)
         base = self.custom_prompt or self.brain.evolution.prompt(self.role)
         lessons = self.brain.lessons.render(8)
-        learned = f"LEZIONI APPRESE da errori passati (non ripeterli):\n{lessons}\n\n" if lessons else ""
+        learned = f"LESSONS LEARNED from past errors (do not repeat them):\n{lessons}\n\n" if lessons else ""
         return (
-            f"{base}\n\nTool disponibili:\n{self.brain.tools.describe(names)}\n\n{PROTOCOL}\n\n{learned}"
-            f"Il tuo id: {self.id}. Ruolo: {self.role}.\nSelf-model:\n{self.brain.selfmodel.render()}"
+            f"{base}\n\nAvailable tools:\n{self.brain.tools.describe(names)}\n\n{PROTOCOL}\n\n{learned}"
+            f"Your id: {self.id}. Role: {self.role}.\nSelf-model:\n{self.brain.selfmodel.render()}"
         )
 
     async def _state(self, state: str, detail: str = "") -> None:
@@ -70,16 +70,16 @@ class Agent:
         names = ROLE_TOOLS.get(self.role)
         allowed = b.tools.all(names)
         wiki_ctx = await b.wiki.context(self.task, 3) if "wiki_search" in allowed else ""
-        task_msg = f"COMPITO:\n{self.task}" + (f"\n\nCONOSCENZA GIA' IN WIKI (wiki_read per i dettagli, non rifare cio' che e' gia' noto):\n{wiki_ctx}" if wiki_ctx else "")
+        task_msg = f"TASK:\n{self.task}" + (f"\n\nKNOWLEDGE ALREADY IN THE WIKI (wiki_read for details, do not redo what is already known):\n{wiki_ctx}" if wiki_ctx else "")
         msgs: list[dict] = [{"role": "system", "content": self._system()}, {"role": "user", "content": task_msg}]
-        success, summary = False, "nessun risultato"
+        success, summary = False, "no result"
         format_errors = 0
         try:
             for _ in range(self.max_steps):
                 await b.control.gate()
                 while self.inbox:
                     frm, txt = self.inbox.pop(0)
-                    msgs.append({"role": "user", "content": f"[messaggio da {frm}] {txt}"})
+                    msgs.append({"role": "user", "content": f"[message from {frm}] {txt}"})
                 self.steps += 1
                 await self._state("thinking")
                 try:
@@ -90,7 +90,7 @@ class Agent:
                     # A malformed reply is not fatal: remember the lesson and resample the same step.
                     format_errors += 1
                     await b.lessons.add(
-                        "Rispondi sempre con UN solo oggetto JSON {thought, action, args}; il codice multilinea nelle stringhe va con \\n escape, mai a capo letterali.",
+                        "Always reply with ONE single JSON object {thought, action, args}; multi-line code inside strings must use \\n escapes, never literal line breaks.",
                         "format",
                     )
                     continue
@@ -105,18 +105,18 @@ class Agent:
                     summary = str(args.get("summary", ""))[:2000]
                     break
                 obs = await self._act(action, args, allowed)
-                msgs.append({"role": "user", "content": f"OSSERVAZIONE ({action}):\n{obs}"})
+                msgs.append({"role": "user", "content": f"OBSERVATION ({action}):\n{obs}"})
                 msgs = self._trim(msgs)
             else:
-                summary = "limite di passi raggiunto senza finish"
+                summary = "step limit reached without finish"
         except Halt:
-            summary = "interrotto"
+            summary = "interrupted"
             await self._finish(False, summary)
             raise
         except LLMError as e:
-            summary = f"errore LLM: {e}"
+            summary = f"LLM error: {e}"
         except Exception as e:  # noqa: BLE001
-            summary = f"errore: {type(e).__name__}: {e}"
+            summary = f"error: {type(e).__name__}: {e}"
         await self._finish(success, summary)
         return {"success": success, "summary": summary, "trace": self.trace[-12:], "steps": self.steps}
 
@@ -124,10 +124,10 @@ class Agent:
         b = self.brain
         if action not in allowed:
             close = difflib.get_close_matches(action, list(allowed), n=3)
-            b.lessons.log_failure(action or "?", "", "tool inesistente")
+            b.lessons.log_failure(action or "?", "", "nonexistent tool")
             return (
-                f"ERRORE: tool '{action}' inesistente." + (f" Forse intendevi: {', '.join(close)}." if close else "")
-                + f" Disponibili: {', '.join(allowed)}"
+                f"ERROR: tool '{action}' does not exist." + (f" Did you mean: {', '.join(close)}?" if close else "")
+                + f" Available: {', '.join(allowed)}"
             )
         await self._state("acting", action)
         await b.bus.publish("tool.call", self.id, tool=action, args=_clip(args, 300))
@@ -135,12 +135,12 @@ class Agent:
             res = await b.tools.call(ToolContext(b, self), action, args)
             ok, obs = not (isinstance(res, dict) and res.get("ok") is False), _clip(res, 2500)
         except Exception as e:  # noqa: BLE001
-            ok, obs = False, f"ERRORE {type(e).__name__}: {str(e)[:900]}"
+            ok, obs = False, f"ERROR {type(e).__name__}: {str(e)[:900]}"
         args_s = json.dumps(args, ensure_ascii=False, default=str)[:160]
         if ok and action in self._fails:
             bad_args, err = self._fails.pop(action)
             b.lessons.mark_resolved(action)
-            await b.lessons.add(f"{action}: la chiamata {bad_args} falliva con '{err}'; ha funzionato con {args_s}", "fix")
+            await b.lessons.add(f"{action}: the call {bad_args} failed with '{err}'; it worked with {args_s}", "fix")
         elif not ok:
             self._fails[action] = (args_s, obs[:140])
             b.lessons.log_failure(action, args_s, obs)

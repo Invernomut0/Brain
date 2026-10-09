@@ -7,9 +7,9 @@ export function AgentList() {
   const list = Object.values(agents).filter((a) => !a.endedAt || now - a.endedAt < 30000).sort((a, b) => b.bornAt - a.bornAt)
   return (
     <section className="panel" style={{ flex: 1 }}>
-      <h3>Agenti <span>{list.filter((a) => !a.endedAt).length} attivi</span></h3>
+      <h3>Agents <span>{list.filter((a) => !a.endedAt).length} active</span></h3>
       <div className="scroll">
-        {!list.length && <div className="empty">Nessun agente attivo.<br />Premi ▶ Avvia in alto per far partire il sistema.</div>}
+        {!list.length && <div className="empty">No active agents.<br />Press ▶ Start at the top to start the system.</div>}
         {list.map((a) => (
           <div className="agent" key={a.id} style={{ borderLeft: `3px solid ${roleColor(a.role)}`, opacity: a.endedAt ? 0.6 : 1 }}>
             <div className="top">

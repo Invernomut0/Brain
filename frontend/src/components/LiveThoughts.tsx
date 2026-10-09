@@ -31,16 +31,16 @@ function ThoughtCard({ a }: { a: AgentView }) {
   const shown = thinking ? text : a.thought
   return (
     <div className={`live ${open ? 'open' : ''}`} style={{ ['--c' as string]: color }}>
-      <div className="live-head" onClick={() => setOpen(!open)} title="Clicca per espandere/comprimere">
+      <div className="live-head" onClick={() => setOpen(!open)} title="Click to expand/collapse">
         <i className="live-dot" />
         <b>{a.role}</b>
         <span className="live-id">{a.id}</span>
-        <span className="live-mode">{thinking ? (reasoning ? 'ragionamento' : 'risposta') : queued ? 'in coda' : a.state === 'acting' ? `tool \u00b7 ${a.detail}` : a.state}</span>
+        <span className="live-mode">{thinking ? (reasoning ? 'reasoning' : 'answer') : queued ? 'queued' : a.state === 'acting' ? `tool \u00b7 ${a.detail}` : a.state}</span>
         {thinking && tps > 0 && <span className="live-tps">{tps.toFixed(1)} tok/s</span>}
         <span className="live-chev">{open ? '\u25be' : '\u25b8'}</span>
       </div>
       <div className="live-body" ref={body}>
-        {shown || <span className="live-wait">{queued ? 'in attesa di uno slot su LM Studio\u2026' : 'in attesa del modello\u2026'}</span>}
+        {shown || <span className="live-wait">{queued ? 'waiting for an LM Studio slot\u2026' : 'waiting for the model\u2026'}</span>}
         {thinking && <span className="live-caret" />}
       </div>
     </div>
@@ -98,10 +98,10 @@ export function LiveThoughts() {
   return (
     <div ref={stack} className={`live-stack ${sized ? 'sized' : ''}`} style={sized ? { width: size.w, height: size.h } : undefined}>
       {!hidden && (
-        <div className="live-grip" title="Trascina per ridimensionare, doppio clic per ripristinare"
+        <div className="live-grip" title="Drag to resize, double-click to restore"
           onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onDoubleClick={resetSize} />
       )}
-      <button className="live-toggle" onClick={toggle}>{hidden ? `\u25b8 ${active.length} agenti al lavoro` : '\u25be nascondi pensieri'}</button>
+      <button className="live-toggle" onClick={toggle}>{hidden ? `\u25b8 ${active.length} agents working` : '\u25be hide thoughts'}</button>
       {!hidden && active.slice(0, 3).map((a) => <ThoughtCard key={a.id} a={a} />)}
     </div>
   )

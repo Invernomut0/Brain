@@ -23,12 +23,12 @@ const TYPE_COLOR: Record<string, string> = {
   insight: '#f472d0', episode: '#7f89b8', tool: '#ffb020', note: '#60a5fa',
 }
 const TYPE_LABEL: Record<string, string> = {
-  meta: 'stato', phase: 'fasi', decision: 'decisioni', concept: 'concetti', entity: 'entità', insight: 'intuizioni', episode: 'episodi', tool: 'tool', note: 'note',
+  meta: 'status', phase: 'phases', decision: 'decisions', concept: 'concepts', entity: 'entities', insight: 'insights', episode: 'episodes', tool: 'tools', note: 'notes',
 }
-const SPECIALS = [['index', 'Indice'], ['log', 'Log'], ['lint', 'Salute'], ['SCHEMA', 'Schema']] as const
+const SPECIALS = [['index', 'Index'], ['log', 'Log'], ['lint', 'Health'], ['SCHEMA', 'Schema']] as const
 const color = (t: string) => TYPE_COLOR[t] ?? '#94a3b8'
 const radius = (n: WNode) => 4 + Math.min(n.degree, 9) * 1.1
-const when = (ts: number | null) => (ts ? new Date(ts * 1000).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-')
+const when = (ts: number | null) => (ts ? new Date(ts * 1000).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-')
 
 type Mode = 'links' | 'semantic'
 
@@ -47,7 +47,7 @@ function inline(text: string, resolve: (t: string) => string | null, open: (id: 
       const id = resolve(m[1])
       out.push(id
         ? <a key={k} className="wl" onClick={() => open(id)}>{m[2] || m[1]}</a>
-        : <span key={k} className="wl broken" title="pagina mancante">{m[2] || m[1]}</span>)
+        : <span key={k} className="wl broken" title="missing page">{m[2] || m[1]}</span>)
     } else if (m[3] !== undefined) out.push(<b key={k}>{m[3]}</b>)
     else if (m[4] !== undefined) out.push(<code key={k}>{m[4]}</code>)
     else if (m[5] !== undefined) out.push(<a key={k} href={m[6]} target="_blank" rel="noopener noreferrer">{m[5]}</a>)
@@ -146,7 +146,7 @@ export function WikiView() {
   const R = 380
   const nodes = useMemo<GNode[]>(() => (graph?.nodes ?? []).filter((n) => !hidden.has(n.type)).map((n) => ({
     id: n.id, label: n.title, color: color(n.type), size: radius(n), hub: n.degree >= 4 || n.type === 'meta',
-    tip: `${n.title}\n${n.summary}${n.embedded ? '\n(vettore)' : ''}`,
+    tip: `${n.title}\n${n.summary}${n.embedded ? '\n(vector)' : ''}`,
     fixed: effectiveMode === 'semantic' && n.sx != null && n.sy != null ? ([n.sx * R, n.sy * R, (n.sz ?? 0) * R] as [number, number, number]) : null,
   })), [graph, hidden, effectiveMode])
   const links = useMemo<GLink[]>(() => {
@@ -167,8 +167,8 @@ export function WikiView() {
     try {
       const r = await api.post<any>(what === 'ingest' ? '/wiki/ingest' : '/wiki/embed')
       setNotice(what === 'ingest'
-        ? (r.error ? `Ingest: ${r.error}` : r.busy ? 'Un ingest è già in corso.' : `Wiki aggiornata: ${r.pages} pagine da ${r.items} nuove informazioni.`)
-        : (r.available ? `Vettori calcolati: ${r.embedded} pagine, ${r.memories ?? 0} ricordi.` : `Modello di embedding non disponibile: ${r.error ?? 'caricalo in LM Studio'}`))
+        ? (r.error ? `Ingest: ${r.error}` : r.busy ? 'An ingest is already running.' : `Wiki updated: ${r.pages} pages from ${r.items} new pieces of information.`)
+        : (r.available ? `Vectors computed: ${r.embedded} pages, ${r.memories ?? 0} memories.` : `Embedding model not available: ${r.error ?? 'load it in LM Studio'}`))
       refresh()
     } catch (e: any) { setNotice(String(e.message ?? e)) } finally { setBusy('') }
   }
@@ -183,21 +183,21 @@ export function WikiView() {
   return (
     <div className="wiki">
       <GraphCanvas nodes={nodes} links={links} selected={selected} highlight={hitIds} onSelect={setSelected} fitKey={effectiveMode}
-        empty={<div className="empty wiki-empty">La wiki si riempie man mano che Brain lavora: stato, episodi, tool, lezioni e conoscenza compilata dai ricordi.</div>} />
+        empty={<div className="empty wiki-empty">The wiki fills up as Brain works: status, episodes, tools, lessons and knowledge compiled from the memories.</div>} />
 
       <div className="wiki-bar">
-        <input value={q} placeholder="Cerca nella wiki…" onChange={(e) => setQ(e.target.value)} />
+        <input value={q} placeholder="Search the wiki…" onChange={(e) => setQ(e.target.value)} />
         <div className="seg">
-          <button className={effectiveMode === 'links' ? 'on' : ''} onClick={() => setMode('links')} title="Layout a forze: i link avvicinano le pagine">Collegamenti</button>
+          <button className={effectiveMode === 'links' ? 'on' : ''} onClick={() => setMode('links')} title="Force layout: links pull pages together">Links</button>
           <button className={effectiveMode === 'semantic' ? 'on' : ''} disabled={!semanticReady} onClick={() => setMode('semantic')}
-            title={semanticReady ? 'Mappa semantica: pagine vicine = significato simile (PCA dei vettori)' : 'Servono almeno 3 pagine con vettore: premi "Vettori"'}>Mappa semantica</button>
+            title={semanticReady ? 'Semantic map: close pages = similar meaning (PCA of the vectors)' : 'At least 3 pages with a vector are needed: press "Vectors"'}>Semantic map</button>
         </div>
         {SPECIALS.map(([id, label]) => <button key={id} className={`btn mini ${selected === id ? 'on' : ''}`} onClick={() => setSelected(id)}>{label}</button>)}
-        <button className="btn mini go" disabled={!!busy} onClick={() => run('ingest')} title="Rigenera le pagine dal database e integra i nuovi ricordi con il modello">
-          {busy === 'ingest' ? <><span className="spin" /> Integro…</> : '↻ Aggiorna wiki'}
+        <button className="btn mini go" disabled={!!busy} onClick={() => run('ingest')} title="Regenerate the pages from the database and fold the new memories in with the model">
+          {busy === 'ingest' ? <><span className="spin" /> Integro…</> : '↻ Update wiki'}
         </button>
-        <button className="btn mini" disabled={!!busy} onClick={() => run('embed')} title="Calcola i vettori con il modello di embedding (LM Studio può doverlo caricare)">
-          {busy === 'embed' ? <><span className="spin" /> Vettori…</> : '◈ Vettori'}
+        <button className="btn mini" disabled={!!busy} onClick={() => run('embed')} title="Compute the vectors with the embedding model (LM Studio may have to load it)">
+          {busy === 'embed' ? <><span className="spin" /> Vectors…</> : '◈ Vectors'}
         </button>
       </div>
       {hits.length > 0 && (
@@ -215,9 +215,9 @@ export function WikiView() {
         </div>
         <div className="wiki-stats">
           {stats ? <>
-            {stats.pages} pagine · {stats.links} link · vettori {stats.embedded}/{stats.pages} · ricordi vettorizzati {stats.memories.embedded}/{stats.memories.total}
-            {stats.pending_items > 0 && <> · {stats.pending_items} da integrare</>}{stats.lint && stats.lint.total > 0 && <> · {stats.lint.total} segnalazioni</>}
-            {emb && !emb.available && <span className="warn"> · modello embedding ({emb.model}) non caricato in LM Studio: ricerca per parole chiave</span>}
+            {stats.pages} pages · {stats.links} links · vectors {stats.embedded}/{stats.pages} · memories vectorised {stats.memories.embedded}/{stats.memories.total}
+            {stats.pending_items > 0 && <> · {stats.pending_items} to fold in</>}{stats.lint && stats.lint.total > 0 && <> · {stats.lint.total} findings</>}
+            {emb && !emb.available && <span className="warn"> · embedding model ({emb.model}) not loaded in LM Studio: keyword search</span>}
           </> : '…'}
           {notice && <span className="note"> — {notice}</span>}
         </div>
@@ -225,20 +225,20 @@ export function WikiView() {
 
       {selected && (
         <aside className="wiki-reader">
-          <button className="x" onClick={() => setSelected(null)} aria-label="Chiudi">×</button>
-          {!page ? <div className="empty">Caricamento…</div> : (
+          <button className="x" onClick={() => setSelected(null)} aria-label="Close">×</button>
+          {!page ? <div className="empty">Loading…</div> : (
             <>
               <div className="wr-head">
                 <span className="kind" style={{ ['--c' as string]: color(page.type) }}>{page.type}</span>
-                {page.managed !== 'auto' || page.type === 'special' ? null : <span className="tag">generata dal database</span>}
+                {page.managed !== 'auto' || page.type === 'special' ? null : <span className="tag">generated from the database</span>}
                 <small> {when(page.updated)}</small>
               </div>
               {page.type !== 'special' && <h3>{page.title}</h3>}
               <Markdown text={page.body} resolve={resolve} open={setSelected} />
-              {page.sources.length > 0 && <div className="wr-meta">Fonti: {page.sources.join(', ')}</div>}
+              {page.sources.length > 0 && <div className="wr-meta">Sources: {page.sources.join(', ')}</div>}
               {page.tags.length > 0 && <div className="wr-meta">Tag: {page.tags.join(', ')}</div>}
               {page.backlinks.length > 0 && (
-                <div className="wr-meta">Citata da: {page.backlinks.map((b, i) => <Fragment key={b.id}>{i > 0 && ', '}<a className="wl" onClick={() => setSelected(b.id)}>{b.title}</a></Fragment>)}</div>
+                <div className="wr-meta">Cited by: {page.backlinks.map((b, i) => <Fragment key={b.id}>{i > 0 && ', '}<a className="wl" onClick={() => setSelected(b.id)}>{b.title}</a></Fragment>)}</div>
               )}
             </>
           )}

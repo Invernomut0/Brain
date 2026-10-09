@@ -25,21 +25,21 @@ async def test_seed_creates_versioned_prompts(brain):
 async def test_hook_runs_in_sandbox_and_evolves(brain):
     goals = [{"id": 1, "priority": 0.1, "attempts": 0}, {"id": 2, "priority": 0.9, "attempts": 0}]
     assert await brain.evolution.call_hook("prioritize", "prioritize", goals, {}) == [2, 1]
-    r = await brain.evolution.propose_hook("prioritize", NEW_HOOK, NEW_TEST, "ordine fifo")
+    r = await brain.evolution.propose_hook("prioritize", NEW_HOOK, NEW_TEST, "fifo order")
     assert r["ok"], r
     assert await brain.evolution.call_hook("prioritize", "prioritize", goals, {}) == [1, 2]
 
 
 async def test_failing_hook_tests_are_rolled_back(brain):
     before = (brain.settings.evolvable_dir / "hooks" / "prioritize.py").read_text()
-    r = await brain.evolution.propose_hook("prioritize", NEW_HOOK, BROKEN_TEST, "rotto")
+    r = await brain.evolution.propose_hook("prioritize", NEW_HOOK, BROKEN_TEST, "broken")
     assert not r["ok"]
     assert (brain.settings.evolvable_dir / "hooks" / "prioritize.py").read_text() == before
 
 
 async def test_prompt_regression_triggers_rollback(brain):
     old = brain.evolution.prompt("executor")
-    new = "Sei un executor molto sbrigativo. " * 5
+    new = "You are a very hasty executor. " * 5
     assert (await brain.evolution.propose_prompt("executor", new, "test"))["ok"]
     assert brain.evolution.prompt("executor") == new
     # v1 performed well, v2 performs badly
@@ -50,5 +50,5 @@ async def test_prompt_regression_triggers_rollback(brain):
 
 
 async def test_invalid_prompt_rejected(brain):
-    assert not (await brain.evolution.propose_prompt("planner", "troppo corto", "x"))["ok"]
-    assert not (await brain.evolution.propose_prompt("critic", "x" * 200, "senza contratto"))["ok"]
+    assert not (await brain.evolution.propose_prompt("planner", "too short", "x"))["ok"]
+    assert not (await brain.evolution.propose_prompt("critic", "x" * 200, "no contract"))["ok"]

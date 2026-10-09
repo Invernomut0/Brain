@@ -113,7 +113,7 @@ function CoreLabel() {
   return (
     <div style={{ textAlign: 'center', whiteSpace: 'nowrap', textShadow: '0 0 12px #8b7bff' }}>
       <div style={{ color: '#c7d0ff', fontSize: 15, letterSpacing: '0.45em', fontWeight: 700 }}>MIND</div>
-      <div style={{ color: '#7f89b8', fontSize: 10, letterSpacing: '0.2em' }}>CICLO {cycle} · AWARENESS {(aw * 100).toFixed(0)}</div>
+      <div style={{ color: '#7f89b8', fontSize: 10, letterSpacing: '0.2em' }}>CYCLE {cycle} · AWARENESS {(aw * 100).toFixed(0)}</div>
     </div>
   )
 }

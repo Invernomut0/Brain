@@ -16,15 +16,15 @@ import { WikiView } from './components/Wiki'
 import { useBrainSocket } from './hooks/useBrainSocket'
 import { ROLE_COLOR } from './store'
 
-const STAGE = { neural: 'Rete neurale', goals: 'Albero obiettivi', tools: 'Agenti ↔ Tool', wiki: 'Wiki' } as const
+const STAGE = { neural: 'Neural network', goals: 'Goal tree', tools: 'Agents ↔ Tools', wiki: 'Wiki' } as const
 const VMODE_KEY = 'brain.viewmode'
 type VMode = '3d' | '2d' | 'off'
 const VMODES: { id: VMode; label: string; hint: string }[] = [
-  { id: '3d', label: '3D', hint: 'Vista 3D (usa la GPU)' },
-  { id: '2d', label: '2D', hint: 'Vista 2D leggera, senza WebGL' },
-  { id: 'off', label: 'Off', hint: 'Spegne la vista grafica: nessun uso di GPU' },
+  { id: '3d', label: '3D', hint: '3D view (uses the GPU)' },
+  { id: '2d', label: '2D', hint: 'Light 2D view, no WebGL' },
+  { id: 'off', label: 'Off', hint: 'Turns the graphic view off: no GPU use' },
 ]
-const DOCK = { feed: 'Eventi live', chat: 'Chat', status: 'Stato', memories: 'Ricordi', journal: 'Giornale', lessons: 'Lezioni', tools: 'Tool', evo: 'Evoluzione' } as const
+const DOCK = { feed: 'Live events', chat: 'Chat', status: 'Status', memories: 'Memories', journal: 'Journal', lessons: 'Lessons', tools: 'Tools', evo: 'Evolution' } as const
 
 export default function App() {
   useBrainSocket()
@@ -49,7 +49,7 @@ export default function App() {
         <div className="tabs">
           {(Object.keys(STAGE) as (keyof typeof STAGE)[]).map((k) => <div key={k} className={`tab ${stage === k ? 'on' : ''}`} onClick={() => setStage(k)}>{STAGE[k]}</div>)}
           {stage === 'neural' && (
-            <div className="vmode" title="Modalità di visualizzazione">
+            <div className="vmode" title="View mode">
               {VMODES.map((m) => <button key={m.id} title={m.hint} className={vmode === m.id ? 'on' : ''} onClick={() => setVmode(m.id)}>{m.label}</button>)}
             </div>
           )}

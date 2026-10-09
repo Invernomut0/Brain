@@ -70,8 +70,8 @@ class Brain:
             raise ValueError("main goal must be 10-2000 characters")
         root = await self.goals.set_main(text, archive_pending)
         await self.selfmodel.update({"purpose": text[:300]})
-        self.memory.journal_add("goal", f"Lorenzo ha cambiato l'obiettivo principale: {text[:300]}")
-        await self.memory.add("user", f"Nuovo obiettivo principale deciso da Lorenzo: {text}", ["user", "goal"], 1.0)
+        self.memory.journal_add("goal", f"Lorenzo changed the main goal: {text[:300]}")
+        await self.memory.add("user", f"New main goal decided by Lorenzo: {text}", ["user", "goal"], 1.0)
         await self.bus.publish("goal.main_changed", None, text=text[:300], cancelled=root["cancelled"])
         return root
 
@@ -145,7 +145,7 @@ class Brain:
                 pass
         await self.sandbox.kill_all()
         self.orchestrator.live.clear()
-        await self.bus.publish("system.log", None, level="warn", text="KILL: agenti e container terminati")
+        await self.bus.publish("system.log", None, level="warn", text="KILL: agents and containers terminated")
 
     # -------------------------------------------------------------- state
     def state_brief(self) -> dict:
@@ -206,7 +206,7 @@ class Brain:
         try:
             await self.sandbox.ensure_container()
         except Exception as e:  # noqa: BLE001 - surfaced via the health chip; retried on first use
-            await self.bus.publish("system.log", None, level="warn", text=f"Sandbox non pronta: {e}")
+            await self.bus.publish("system.log", None, level="warn", text=f"Sandbox not ready: {e}")
 
     async def _metrics_loop(self) -> None:
         proc = psutil.Process()

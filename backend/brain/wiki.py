@@ -42,8 +42,8 @@ LLM_TYPES = ("concept", "entity", "insight", "decision", "phase")
 LLM_FOLDERS = {FOLDERS[t] for t in LLM_TYPES}
 SPECIAL = ("index", "log", "SCHEMA", "lint")
 LABELS = {
-    "meta": "Stato e meta", "phase": "Fasi del percorso", "decision": "Decisioni", "concept": "Concetti", "entity": "Entita'",
-    "insight": "Intuizioni", "episode": "Episodi (obiettivi conclusi)", "tool": "Tool creati", "note": "Note e risposte archiviate",
+    "meta": "State and meta", "phase": "Phases of the journey", "decision": "Decisions", "concept": "Concepts", "entity": "Entities",
+    "insight": "Insights", "episode": "Episodes (concluded goals)", "tool": "Tools created", "note": "Notes and filed answers",
 }
 ORDER = list(LABELS)
 
@@ -59,64 +59,64 @@ INGEST_MIN_ITEMS = 8
 INGEST_MAX_AGE = 1800
 STALE_DAYS = 14
 
-SCHEMA = """# Schema della wiki di Brain
+SCHEMA = """# Brain wiki schema
 
-Questa wiki e' scritta e mantenuta da Brain (pattern "LLM Wiki"): la conoscenza viene compilata una volta e tenuta aggiornata,
-non ricostruita a ogni domanda. Lorenzo la legge (anche con Obsidian); Brain la scrive.
+This wiki is written and maintained by Brain ("LLM Wiki" pattern): knowledge is compiled once and kept current,
+not rebuilt for every question. Lorenzo reads it (Obsidian works too); Brain writes it.
 
-## Livelli
-- **Fonti grezze**: il database di Brain (eventi, ricordi, giornale, obiettivi, tool). La wiki le legge, non le modifica.
-- **Wiki**: i file markdown qui dentro.
-- **Schema**: questo file.
+## Layers
+- **Raw sources**: Brain's database (events, memories, journal, goals, tools). The wiki reads them, never modifies them.
+- **Wiki**: the markdown files in here.
+- **Schema**: this file.
 
-## Pagine
-Ogni pagina e' `cartella/slug.md` con frontmatter:
+## Pages
+Every page is `folder/slug.md` with frontmatter:
 
     ---
-    title: Titolo
+    title: Title
     type: concept | entity | insight | decision | phase | note | episode | tool | meta
-    summary: una riga
-    updated: data ISO
+    summary: one line
+    updated: ISO date
     managed: auto | llm | user
     sources: [memory:12, journal:3]
     tags: [a, b]
     ---
 
-- `managed: auto`: pagina rigenerata dal database (stato, lezioni, evoluzione, self-model, episodi, tool): non modificarla a mano.
-- `managed: llm`: pagina scritta dal bibliotecario (concepts, entities, insights, decisions, phases, notes).
-- `managed: user`: pagina di Lorenzo: Brain la legge e la indicizza ma non la sovrascrive.
-- Link con `[[cartella/slug]]` (o `[[Titolo]]`). Ogni pagina deve linkarne almeno una; i link a pagine inesistenti sono "pagine mancanti".
-- Una **fase** (`phases/`) e' un periodo o una svolta del percorso: data, cosa e' cambiato, perche' conta.
-- Le contraddizioni si segnalano con una riga che inizia con `⚠ Contraddizione:` (versione vecchia e nuova).
+- `managed: auto`: page regenerated from the database (status, lessons, evolution, self-model, episodes, tools): do not edit it by hand.
+- `managed: llm`: page written by the librarian (concepts, entities, insights, decisions, phases, notes).
+- `managed: user`: Lorenzo's own page: Brain reads and indexes it but never overwrites it.
+- Link with `[[folder/slug]]` (or `[[Title]]`). Every page must link at least one other; links to missing pages are "wanted pages".
+- A **phase** (`phases/`) is a period or turning point of the journey: date, what changed, why it matters.
+- Contradictions are flagged with a line starting with `⚠ Contradiction:` (old and new version).
 
-## File speciali
-- `index.md`: catalogo di tutte le pagine per categoria, con riassunto e data. Si rigenera da solo.
-- `log.md`: cronologia append-only. Ogni voce inizia con `## [AAAA-MM-GG HH:MM] tipo | titolo`
-  (tipi: goal, tool, evolution, lesson, status, ingest, lint, query), quindi `grep "^## \\[" log.md | tail -5` mostra le ultime.
-- `lint.md`: esito dell'ultimo controllo di salute.
+## Special files
+- `index.md`: catalogue of all pages by category, with summary and date. It regenerates itself.
+- `log.md`: append-only chronology. Every entry starts with `## [YYYY-MM-DD HH:MM] kind | title`
+  (kinds: goal, tool, evolution, lesson, status, ingest, lint, query), so `grep "^## \\[" log.md | tail -5` shows the latest ones.
+- `lint.md`: result of the last health check.
 
-## Operazioni
-- **Ingest**: nuovi ricordi e voci del giornale vengono integrati nelle pagine esistenti o in pagine nuove; si aggiornano indice e log.
-- **Query**: si cerca nella wiki (vettori + parole chiave) prima di rifare ricerche; le risposte utili si archiviano in `notes/`.
-- **Lint**: link rotti, pagine orfane, pagine non aggiornate da tempo, contraddizioni aperte, pagine senza vettore.
+## Operations
+- **Ingest**: new memories and journal entries are folded into existing pages or new pages; index and log are updated.
+- **Query**: search the wiki (vectors + keywords) before researching again; useful answers are filed under `notes/`.
+- **Lint**: broken links, orphan pages, long-stale pages, open contradictions, pages without a vector.
 """
 
-INGEST_PROMPT = """Sei il bibliotecario della wiki di Brain (pattern "LLM Wiki"): non rispondi a domande, MANTIENI una base di conoscenza in markdown che si accumula nel tempo.
-Ricevi NUOVE informazioni grezze (ricordi e voci del giornale) e l'elenco delle pagine gia' esistenti. Integra le novita':
-- crea pagine nuove per concetti, entita' (persone, strumenti, servizi), intuizioni, decisioni e FASI significative del percorso (type "phase": un periodo o una svolta, con la data e cosa e' cambiato);
-- se una pagina esistente e' pertinente AGGIORNALA riusando il suo id e restituendo il corpo COMPLETO riscritto: tieni i fatti precedenti, aggiungi i nuovi, e se un'informazione nuova contraddice una vecchia scrivi una riga che inizia con "⚠ Contraddizione:" con entrambe le versioni;
-- collega le pagine con [[id]] (id di pagine esistenti o create ora): ogni pagina ne linka almeno una; se ti vengono indicate PAGINE MANCANTI e hai le informazioni, creale;
-- usa SOLO le informazioni fornite, niente invenzioni; italiano, conciso (corpo max 1500 caratteri, markdown con titoli ## ed elenchi);
-- le fonti ([memory:12], [journal:3]) vanno SOLO nel campo "sources", mai come link [[...]] nel corpo;
-- massimo 5 pagine; ignora il rumore (cose banali o ripetute).
-Rispondi SOLO con JSON: {"pages": [{"id": "concepts/slug", "title": "...", "type": "concept|entity|insight|decision|phase", "summary": "una riga", "body": "markdown", "sources": ["memory:12", "journal:3"]}], "log": "una riga su cosa hai integrato"}
-Gli id hanno la forma cartella/slug, con cartella tra concepts, entities, insights, decisions, phases."""
+INGEST_PROMPT = """You are the librarian of Brain's wiki ("LLM Wiki" pattern): you do not answer questions, you MAINTAIN a markdown knowledge base that accumulates over time.
+You receive NEW raw information (memories and journal entries) and the list of pages that already exist. Fold the news in:
+- create new pages for concepts, entities (people, tools, services), insights, decisions and significant PHASES of the journey (type "phase": a period or turning point, with the date and what changed);
+- if an existing page is relevant, UPDATE it by reusing its id and returning the COMPLETE rewritten body: keep the previous facts, add the new ones, and if new information contradicts an old one write a line starting with "⚠ Contradiction:" with both versions;
+- link pages with [[id]] (ids of existing pages or ones you create now): every page links at least one; if you are given WANTED PAGES and you have the information, create them;
+- use ONLY the information provided, no inventions; write in English, concise (body max 1500 characters, markdown with ## headings and lists);
+- sources ([memory:12], [journal:3]) go ONLY in the "sources" field, never as [[...]] links in the body;
+- at most 5 pages; ignore noise (trivial or repeated things).
+Reply ONLY with JSON: {"pages": [{"id": "concepts/slug", "title": "...", "type": "concept|entity|insight|decision|phase", "summary": "one line", "body": "markdown", "sources": ["memory:12", "journal:3"]}], "log": "one line about what you integrated"}
+Ids have the form folder/slug, with folder among concepts, entities, insights, decisions, phases."""
 
 
 # ------------------------------------------------------------------ helpers
 def slugify(s: str) -> str:
     s = unicodedata.normalize("NFKD", str(s)).encode("ascii", "ignore").decode().lower()
-    return re.sub(r"[^a-z0-9]+", "-", s).strip("-")[:60] or "pagina"
+    return re.sub(r"[^a-z0-9]+", "-", s).strip("-")[:60] or "page"
 
 
 def _one_line(s: object, n: int = 160) -> str:
@@ -233,7 +233,7 @@ class Wiki:
     def _ensure_log(self) -> None:
         p = self.dir / "log.md"
         if not p.exists():
-            p.write_text("# Log\n\nCronologia append-only della wiki. Ogni voce: `## [data] tipo | titolo`.\n\n")
+            p.write_text("# Log\n\nAppend-only chronology of the wiki. Every entry: `## [date] kind | title`.\n\n")
 
     def _write_special(self, name: str, text: str) -> bool:
         p = self.dir / f"{name}.md"
@@ -388,68 +388,68 @@ class Wiki:
         cur = b.status.current()
         f, rep = cur["facts"], cur["report"]
         m, g = f["metrics"], f["goals"]
-        lines = ["# Stato del progetto", ""]
+        lines = ["# Project status", ""]
         if rep:
             lines += [f"{i}. {_plain(x, 220)}" for i, x in enumerate(rep["lines"], 1)]
-            src = "stima del modello" if rep["source"] == "llm" else "indicatore misurabile"
-            lines += ["", f"**Avanzamento verso l'obiettivo:** {round(rep['progress'])}% ({src}, report del {_date(rep['ts'])})"]
+            src = "model estimate" if rep["source"] == "llm" else "measurable indicator"
+            lines += ["", f"**Progress toward the goal:** {round(rep['progress'])}% ({src}, report of {_date(rep['ts'])})"]
         else:
-            lines.append("_Il racconto dello stato non e' ancora stato generato (tab Stato del dashboard)._")
+            lines.append("_The status story has not been generated yet (Status tab of the dashboard)._")
         lines += [
-            "", f"**Obiettivo principale:** {_plain(f['goal'], 600)}", "", "## Numeri", "",
-            "| obiettivi riusciti | falliti | in coda | tool | ricordi | lezioni | evoluzioni | indice di consapevolezza |", "|---|---|---|---|---|---|---|---|",
+            "", f"**Main goal:** {_plain(f['goal'], 600)}", "", "## Numbers", "",
+            "| goals succeeded | failed | queued | tools | memories | lessons | evolutions | awareness index |", "|---|---|---|---|---|---|---|---|",
             f"| {g['done']} | {g['failed']} | {g['pending'] + g['active']} | {m['tools']} | {m['memories']} | {m['lessons']} | {m['evolutions_applied']} | {m['awareness_index']:.2f} |",
         ]
         if rep and rep["done"]:
-            lines += ["", "## Fatto", *[f"- {_plain(x, 200)}" for x in rep["done"]]]
+            lines += ["", "## Done", *[f"- {_plain(x, 200)}" for x in rep["done"]]]
         if rep and rep["missing"]:
-            lines += ["", "## Manca", *[f"- {_plain(x, 200)}" for x in rep["missing"]]]
+            lines += ["", "## Missing", *[f"- {_plain(x, 200)}" for x in rep["missing"]]]
         if f["next"]:
-            lines += ["", "## In coda", *[f"- {_plain(x, 160)}" for x in f["next"]]]
+            lines += ["", "## Queued", *[f"- {_plain(x, 160)}" for x in f["next"]]]
         db = b.db
-        lines += ["", "## Esplora", "", "- [[lessons]] · [[evolution]] · [[self-model]] · [[index]] · [[log]] · [[lint]]"]
-        for title, typ, n in (("Fasi del percorso", "phase", 10), ("Decisioni", "decision", 6), ("Episodi recenti", "episode", 8)):
+        lines += ["", "## Explore", "", "- [[lessons]] · [[evolution]] · [[self-model]] · [[index]] · [[log]] · [[lint]]"]
+        for title, typ, n in (("Phases of the journey", "phase", 10), ("Decisions", "decision", 6), ("Recent episodes", "episode", 8)):
             rows = db.query("SELECT id,title,summary FROM wiki_pages WHERE type=? ORDER BY updated DESC LIMIT ?", (typ, n))
             if rows:
                 lines += ["", f"## {title}", *[f"- [[{r['id']}]] — {_plain(r['summary'], 120)}" for r in rows]]
         tools = db.query("SELECT id,summary FROM wiki_pages WHERE type='tool' ORDER BY id")
         if tools:
-            lines += ["", "## Tool creati", *[f"- [[{r['id']}]] — {_plain(r['summary'], 120)}" for r in tools]]
-        summary = (f"Stato {f['state']}: {g['done']} obiettivi riusciti, {g['failed']} falliti, {g['pending'] + g['active']} in coda; "
-                   f"{m['tools']} tool, {m['memories']} ricordi, indice {m['awareness_index']:.2f}.")
-        self.write_page("status", "Stato del progetto", "meta", summary, "\n".join(lines))
+            lines += ["", "## Tools created", *[f"- [[{r['id']}]] — {_plain(r['summary'], 120)}" for r in tools]]
+        summary = (f"State {f['state']}: {g['done']} goals succeeded, {g['failed']} failed, {g['pending'] + g['active']} queued; "
+                   f"{m['tools']} tools, {m['memories']} memories, index {m['awareness_index']:.2f}.")
+        self.write_page("status", "Project status", "meta", summary, "\n".join(lines))
 
     def _sync_meta(self) -> None:
         b = self.b
         lessons = sorted(b.lessons.all(), key=lambda i: (i["count"], i["ts"]), reverse=True)
-        body = ["# Lezioni apprese", "", "Regole ricavate dagli errori e iniettate nei prompt degli agenti. Torna a [[status]].", ""]
+        body = ["# Lessons learned", "", "Rules derived from errors and injected into the agents' prompts. Back to [[status]].", ""]
         by_kind: dict[str, list[dict]] = defaultdict(list)
         for it in lessons:
             by_kind[it["kind"]].append(it)
         for kind, items in by_kind.items():
-            body += [f"## {kind}", *[f"- {_plain(i['text'], 400)} _(visto {i['count']}x, {_date(i['ts'])})_" for i in items], ""]
+            body += [f"## {kind}", *[f"- {_plain(i['text'], 400)} _(seen {i['count']}x, {_date(i['ts'])})_" for i in items], ""]
         if not lessons:
-            body.append("_Nessuna lezione ancora._")
-        self.write_page("lessons", "Lezioni apprese", "meta", f"{len(lessons)} lezioni ricavate dagli errori.", "\n".join(body))
+            body.append("_No lessons yet._")
+        self.write_page("lessons", "Lessons learned", "meta", f"{len(lessons)} lessons derived from errors.", "\n".join(body))
 
         evo = b.evolution.history(50)
-        body = ["# Evoluzione", "", "Modifiche a prompt e hook, con esito (applied / rolled_back / rejected). Torna a [[status]].", ""]
+        body = ["# Evolution", "", "Changes to prompts and hooks, with outcome (applied / rolled_back / rejected). Back to [[status]].", ""]
         if evo:
-            body += ["| data | tipo | bersaglio | esito | motivo |", "|---|---|---|---|---|"]
+            body += ["| date | kind | target | outcome | reason |", "|---|---|---|---|---|"]
             body += [f"| {_date(e['ts'])} | {e['kind']} | {e['target']} | {e['status']} | {_plain(e['reason'], 160).replace('|', '/')} |" for e in evo]
         else:
-            body.append("_Nessuna evoluzione ancora._")
+            body.append("_No evolution yet._")
         applied = sum(1 for e in evo if e["status"] == "applied")
-        self.write_page("evolution", "Evoluzione", "meta", f"{len(evo)} modifiche proposte, {applied} applicate.", "\n".join(body))
+        self.write_page("evolution", "Evolution", "meta", f"{len(evo)} changes proposed, {applied} applied.", "\n".join(body))
 
         sm = b.selfmodel.get()
-        body = ["# Self-model", "", f"Revisione {sm.get('revision', 0)}. Torna a [[status]].", ""]
+        body = ["# Self-model", "", f"Revision {sm.get('revision', 0)}. Back to [[status]].", ""]
         for key in ("identity", "purpose", "about_user", "about_world"):
             body += [f"## {key}", _plain(sm.get(key, ""), 600), ""]
         for key in ("capabilities", "limitations", "open_questions", "hypotheses"):
             items = sm.get(key) or []
-            body += [f"## {key}", *([f"- {_plain(x, 300)}" for x in items] or ["_nessuno_"]), ""]
-        self.write_page("self-model", "Self-model", "meta", f"Come Brain descrive se stesso (revisione {sm.get('revision', 0)}).", "\n".join(body))
+            body += [f"## {key}", *([f"- {_plain(x, 300)}" for x in items] or ["_none_"]), ""]
+        self.write_page("self-model", "Self-model", "meta", f"How Brain describes itself (revision {sm.get('revision', 0)}).", "\n".join(body))
 
     def _sync_episodes(self) -> None:
         db = self.b.db
@@ -461,17 +461,17 @@ class Wiki:
             ok = g["status"] == "done"
             exp = "-" if g["expected_success"] is None else f"{g['expected_success']:.1f}"
             body = [
-                f"# Obiettivo #{g['id']}: {_plain(g['title'], 150)}", "",
-                f"**Esito:** {'riuscito' if ok else 'fallito'} · priorita' {g['priority']:.1f} · successo atteso {exp} · tentativi {g['attempts']} · chiuso il {_date(g['updated'])}",
-                "", "## Descrizione", _plain(g["description"], 1200) or "_nessuna_", "", "## Risultato", _plain(g["result"], 1500) or "_nessuno_",
+                f"# Goal #{g['id']}: {_plain(g['title'], 150)}", "",
+                f"**Outcome:** {'succeeded' if ok else 'failed'} · priority {g['priority']:.1f} · expected success {exp} · attempts {g['attempts']} · closed on {_date(g['updated'])}",
+                "", "## Description", _plain(g["description"], 1200) or "_none_", "", "## Result", _plain(g["result"], 1500) or "_none_",
             ]
             v = verdicts.get(g["id"])
             if v:
-                body += ["", "## Valutazione del critic", f"{v.get('verdict')} (punteggio {v.get('score')}): {_plain(v.get('feedback'), 500)}"]
-            body += ["", "Torna a [[status]]."]
+                body += ["", "## Critic evaluation", f"{v.get('verdict')} (score {v.get('score')}): {_plain(v.get('feedback'), 500)}"]
+            body += ["", "Back to [[status]]."]
             self.write_page(
-                f"episodes/goal-{g['id']}", f"Obiettivo #{g['id']}: {g['title']}", "episode",
-                f"{'Riuscito' if ok else 'Fallito'} — {g['result'] or g['title']}", "\n".join(body), tags=[g["status"], g["role"] or "executor"],
+                f"episodes/goal-{g['id']}", f"Goal #{g['id']}: {g['title']}", "episode",
+                f"{'Succeeded' if ok else 'Failed'} — {g['result'] or g['title']}", "\n".join(body), tags=[g["status"], g["role"] or "executor"],
             )
 
     def _sync_tools(self) -> None:
@@ -480,9 +480,9 @@ class Wiki:
                 continue
             body = [
                 f"# Tool `{t['name']}`", "", _plain(t["description"], 400), "",
-                f"**Stato:** {t['status']} · chiamate {t['calls']} · errori {t['failures']} · creato il {_date(t['created'])}", "",
-                "## Parametri", f"`{_plain(t['params'], 400)}`", "", "## Esito dei test", "```", (t["test_output"] or "")[-600:].replace("```", "'''"), "```", "",
-                "Torna a [[status]].",
+                f"**Status:** {t['status']} · calls {t['calls']} · errors {t['failures']} · created on {_date(t['created'])}", "",
+                "## Parameters", f"`{_plain(t['params'], 400)}`", "", "## Test results", "```", (t["test_output"] or "")[-600:].replace("```", "'''"), "```", "",
+                "Back to [[status]].",
             ]
             self.write_page(f"tools/{t['name']}", t["name"], "tool", t["description"] or t["name"], "\n".join(body), tags=[t["status"]])
 
@@ -492,8 +492,8 @@ class Wiki:
         for r in rows:
             by["meta" if r["type"] == "meta" else r["type"]].append(r)
         lines = [
-            "# Indice", "",
-            f"{len(rows)} pagine. Cronologia: [[log]] · Convenzioni: [[SCHEMA]] · Salute: [[lint]]. Si rigenera da solo.", "",
+            "# Index", "",
+            f"{len(rows)} pages. Chronology: [[log]] · Conventions: [[SCHEMA]] · Health: [[lint]]. It regenerates itself.", "",
         ]
         for t in [*ORDER, *sorted(k for k in by if k not in ORDER)]:
             if by.get(t):
@@ -521,28 +521,28 @@ class Wiki:
             "broken": [{"target": t, "from": sorted(set(f))} for t, f in sorted(broken.items(), key=lambda kv: -len(kv[1]))],
             "orphans": sorted(r["id"] for r in rows if r["managed"] != "auto" and not inbound[r["id"]]),
             "stale": sorted(r["id"] for r in rows if r["managed"] == "llm" and now - r["updated"] > STALE_DAYS * 86400),
-            "contradictions": sorted(r["id"] for r in rows if "⚠ Contraddizione" in (r["body"] or "")),
+            "contradictions": sorted(r["id"] for r in rows if "⚠ Contradiction" in (r["body"] or "")),
             "no_summary": sorted(r["id"] for r in rows if not (r["summary"] or "").strip()),
             "unembedded": sum(1 for r in rows if not r["vec"]),
             "pages": len(rows),
         }
         report["total"] = sum(len(report[k]) for k in ("broken", "orphans", "stale", "contradictions", "no_summary"))
-        out = ["# Controllo di salute (lint)", "", f"{report['pages']} pagine · {report['total']} segnalazioni · {report['unembedded']} senza vettore.", ""]
+        out = ["# Health check (lint)", "", f"{report['pages']} pages · {report['total']} findings · {report['unembedded']} without a vector.", ""]
         sections = [
-            ("Pagine mancanti (link rotti)", [f"- `{b['target']}` citata da " + ", ".join(f"[[{x}]]" for x in b["from"]) for b in report["broken"]]),
-            ("Pagine orfane (nessun link in ingresso)", [f"- [[{x}]]" for x in report["orphans"]]),
-            (f"Non aggiornate da oltre {STALE_DAYS} giorni", [f"- [[{x}]]" for x in report["stale"]]),
-            ("Contraddizioni aperte", [f"- [[{x}]]" for x in report["contradictions"]]),
-            ("Senza riassunto", [f"- [[{x}]]" for x in report["no_summary"]]),
+            ("Missing pages (broken links)", [f"- `{b['target']}` cited by " + ", ".join(f"[[{x}]]" for x in b["from"]) for b in report["broken"]]),
+            ("Orphan pages (no inbound links)", [f"- [[{x}]]" for x in report["orphans"]]),
+            (f"Not updated for over {STALE_DAYS} days", [f"- [[{x}]]" for x in report["stale"]]),
+            ("Open contradictions", [f"- [[{x}]]" for x in report["contradictions"]]),
+            ("Without a summary", [f"- [[{x}]]" for x in report["no_summary"]]),
         ]
         for title, items in sections:
-            out += [f"## {title}", *(items or ["_nessuna_"]), ""]
+            out += [f"## {title}", *(items or ["_none_"]), ""]
         self._write_special("lint", "\n".join(out))
         prev = db.kv_get("wiki_lint")
         db.kv_set("wiki_lint", {k: report[k] for k in ("total", "pages", "unembedded")} | {"ts": now})
         db.kv_set("wiki_wanted", report["broken"][:10])
         if prev is None or prev.get("total") != report["total"]:
-            self.log("lint", f"{report['total']} segnalazioni su {report['pages']} pagine", "Vedi [[lint]].")
+            self.log("lint", f"{report['total']} findings on {report['pages']} pages", "See [[lint]].")
         return report
 
     # --------------------------------------------------------------- vectors
@@ -634,10 +634,10 @@ class Wiki:
         """File a useful answer back into the wiki so explorations compound."""
         title, body = _one_line(title, 100), body.strip()
         if len(title) < 3 or len(body) < 20:
-            raise ValueError("serve un titolo (3+ caratteri) e un corpo (20+ caratteri)")
+            raise ValueError("a title (3+ characters) and a body (20+ characters) are required")
         pid = f"notes/{slugify(title)}"
         self.write_page(pid, title, "note", summary or body[:160], body, sources=[source] if source else [], managed="llm")
-        self.log("query", f"Archiviata: {title}", f"[[{pid}]]")
+        self.log("query", f"Filed: {title}", f"[[{pid}]]")
         self._refresh_meta()
         self._touch()
         await self.b.bus.publish("wiki.update", None, changed=1)
@@ -686,10 +686,10 @@ class Wiki:
                 rel_txt += f"### {h['id']}\n{row['body'][:1400]}\n\n"
         wanted = [x["target"] for x in (b.db.kv_get("wiki_wanted") or [])][:6]
         prompt = (
-            "PAGINE ESISTENTI (id | tipo | riassunto):\n" + ("\n".join(f"{r['id']} | {r['type']} | {r['summary'][:100]}" for r in index) or "(nessuna)")
-            + f"\n\nPAGINE PERTINENTI (contenuto attuale):\n{rel_txt or '(nessuna)'}"
-            + (f"\nPAGINE MANCANTI (link rotti da creare se hai le informazioni):\n" + "\n".join(f"- {w}" for w in wanted) + "\n" if wanted else "")
-            + "\nNUOVE INFORMAZIONI:\n" + "\n".join(items)
+            "EXISTING PAGES (id | type | summary):\n" + ("\n".join(f"{r['id']} | {r['type']} | {r['summary'][:100]}" for r in index) or "(none)")
+            + f"\n\nRELEVANT PAGES (current content):\n{rel_txt or '(none)'}"
+            + (f"\nWANTED PAGES (broken links to create if you have the information):\n" + "\n".join(f"- {w}" for w in wanted) + "\n" if wanted else "")
+            + "\nNEW INFORMATION:\n" + "\n".join(items)
         )
         try:
             out = await b.llm.chat_json(
@@ -705,7 +705,7 @@ class Wiki:
         b.db.kv_set("wiki_last_ingest", time.time())
         n_items = len(items)
         self.log(
-            "ingest", f"{len(written)} pagine da {len(mems)} ricordi e {len(jr)} voci di giornale",
+            "ingest", f"{len(written)} pages from {len(mems)} memories and {len(jr)} journal entries",
             (_plain(out.get("log"), 300) + "\n" if out.get("log") else "") + " ".join(f"[[{p}]]" for p in written),
         )
         self._refresh_meta()
@@ -784,24 +784,24 @@ class Wiki:
             if d.get("parent_id") is not None and d.get("status") in ("done", "failed"):
                 ok = d["status"] == "done"
                 self._touch()
-                self.log("goal", f"#{d['id']} {_plain(d.get('title'), 100)}", f"{'riuscito' if ok else 'fallito'}: {_plain(d.get('result'), 300)} → [[episodes/goal-{d['id']}]]",
+                self.log("goal", f"#{d['id']} {_plain(d.get('title'), 100)}", f"{'succeeded' if ok else 'failed'}: {_plain(d.get('result'), 300)} → [[episodes/goal-{d['id']}]]",
                          key=f"goal:{d['id']}:{d['status']}")
         elif t == "tool.created":
             self._touch()
-            self.log("tool", f"{d.get('name')} ({'test OK' if d.get('passed') else 'test falliti'})", _plain(d.get("description"), 200), key=f"tool:{d.get('name')}:{d.get('passed')}")
+            self.log("tool", f"{d.get('name')} ({'tests OK' if d.get('passed') else 'tests failed'})", _plain(d.get("description"), 200), key=f"tool:{d.get('name')}:{d.get('passed')}")
         elif t == "evolution":
             self._touch()
             self.log("evolution", f"{d.get('kind')} {d.get('target')}: {d.get('status')}", _plain(d.get("reason"), 200) + " → [[evolution]]", key=f"evo:{ev.seq}")
         elif t == "goal.main_changed":
             self._touch()
-            self.log("goal", "Nuovo obiettivo principale", _plain(d.get("text"), 300), key=f"main:{ev.seq}")
+            self.log("goal", "New main goal", _plain(d.get("text"), 300), key=f"main:{ev.seq}")
         elif t == "lesson.learned":
             self._touch()
             if d.get("new"):
                 self.log("lesson", _plain(d.get("text"), 100), "→ [[lessons]]", key=f"lesson:{ev.seq}")
         elif t == "status.report":
             self._touch()
-            self.log("status", f"Avanzamento stimato {round(d.get('progress', 0))}%", "→ [[status]]", key=f"status:{ev.seq}")
+            self.log("status", f"Estimated progress {round(d.get('progress', 0))}%", "→ [[status]]", key=f"status:{ev.seq}")
         elif t in ("selfmodel.update", "memory.add"):
             self._touch()
 

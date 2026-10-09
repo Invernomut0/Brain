@@ -7,7 +7,7 @@ import { GraphCanvas, type GLink, type GNode } from './Graph'
 const STATUS_COLOR: Record<string, string> = {
   pending: '#7f89b8', active: '#22d3ee', done: '#34f5a0', failed: '#ff4d6d', cancelled: '#4b5578',
 }
-const STATUS_LABEL: Record<string, string> = { pending: 'in coda', active: 'in corso', done: 'riuscito', failed: 'fallito', cancelled: 'annullato' }
+const STATUS_LABEL: Record<string, string> = { pending: 'queued', active: 'running', done: 'succeeded', failed: 'failed', cancelled: 'cancelled' }
 const ROW = 38  // px between siblings (2D)
 const COL = 310  // px between levels (2D): wide enough for a full label
 const RING = 190  // radius step (3D)
@@ -64,12 +64,12 @@ export function GoalTree() {
   return (
     <>
       <GraphCanvas nodes={nodes} links={links} dag selected={selected} onSelect={setSelected} fitKey={String(nodes.length)}
-        empty={<div className="empty">Nessun obiettivo ancora.</div>} />
+        empty={<div className="empty">No goals yet.</div>} />
       {g && (
         <div className="goal-card">
-          <button className="x" onClick={() => setSelected(null)} aria-label="Chiudi">×</button>
+          <button className="x" onClick={() => setSelected(null)} aria-label="Close">×</button>
           <b>#{g.id} {g.title}</b>
-          <small style={{ color: STATUS_COLOR[g.status] }}>{STATUS_LABEL[g.status] ?? g.status} · priorità {(g.priority ?? 0).toFixed(1)}{g.expected_success != null && <> · successo atteso {Math.round(g.expected_success * 100)}%</>}</small>
+          <small style={{ color: STATUS_COLOR[g.status] }}>{STATUS_LABEL[g.status] ?? g.status} · priority {(g.priority ?? 0).toFixed(1)}{g.expected_success != null && <> · expected success {Math.round(g.expected_success * 100)}%</>}</small>
           {g.description && <p>{g.description}</p>}
           {g.result && <p className="res">{g.result}</p>}
         </div>

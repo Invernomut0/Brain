@@ -60,7 +60,7 @@ async def test_embeddings_are_skipped_unless_their_model_is_already_loaded(brain
     if not loaded:
         with pytest.raises(LLMError, match="not loaded"):
             await llm.embed(["ciao"])
-        await brain.memory.add("fact", "Roma e' la capitale d'Italia")  # falls back to keyword search
+        await brain.memory.add("fact", "Rome is the capital of Italy")  # falls back to keyword search
         assert (await brain.memory.search("capitale", 1))[0]["text"].startswith("Roma")
 
 
@@ -72,11 +72,11 @@ async def test_chat_preempts_a_running_agent_request_with_the_real_model(brain):
     done: dict[str, float] = {}
 
     async def agent():
-        await llm.chat([{"role": "user", "content": "Scrivi un saggio di 400 parole sulla storia della matematica."}], agent="exec-x", max_tokens=1200)
+        await llm.chat([{"role": "user", "content": "Write a 400-word essay on the history of mathematics."}], agent="exec-x", max_tokens=1200)
         done["agent"] = time.time()
 
     async def chat():
-        await llm.chat([{"role": "user", "content": "Rispondi solo: ok"}], agent="voice", max_tokens=100, priority=0)
+        await llm.chat([{"role": "user", "content": "Reply only: ok"}], agent="voice", max_tokens=100, priority=0)
         done["chat"] = time.time()
 
     t_agent = asyncio.create_task(agent())

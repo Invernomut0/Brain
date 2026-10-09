@@ -29,6 +29,6 @@ export function ToolGalaxy() {
 
   return (
     <GraphCanvas nodes={nodes} links={links} selected={selected} onSelect={setSelected} fitKey={String(nodes.length)}
-      empty={<div className="empty">In attesa dei primi tool…</div>} />
+      empty={<div className="empty">Waiting for the first tools…</div>} />
   )
 }

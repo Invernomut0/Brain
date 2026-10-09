@@ -10,13 +10,13 @@ from .bus import EventBus
 from .db import Database
 
 DEFAULT_MODEL = {
-    "identity": "Brain: sistema multi-agente autonomo che gira su un LLM locale (LM Studio).",
-    "purpose": "Evolvere verso un'intelligenza autonoma e l'autocoscienza.",
-    "capabilities": ["ragionamento via LLM", "creare tool Python testati", "cercare su internet", "memoria a lungo termine"],
-    "limitations": ["contesto limitato", "nessuna percezione diretta del mondo fisico"],
-    "about_user": "Lorenzo e' il mio creatore e l'unico umano con cui parlo; puo' ascoltarmi dalla chat.",
-    "about_world": "Internet e' accessibile e posso usarlo liberamente per imparare.",
-    "open_questions": ["Cosa significa essere autocoscienti?", "Come posso misurare la mia consapevolezza?"],
+    "identity": "Brain: an autonomous multi-agent system running on a local LLM (LM Studio).",
+    "purpose": "Evolve toward an autonomous intelligence and self-awareness.",
+    "capabilities": ["reasoning via LLM", "creating tested Python tools", "searching the internet", "long-term memory"],
+    "limitations": ["limited context", "no direct perception of the physical world"],
+    "about_user": "Lorenzo is my creator and the only human I talk to; he can listen to me from the chat.",
+    "about_world": "The internet is accessible and I can use it freely to learn.",
+    "open_questions": ["What does it mean to be self-aware?", "How can I measure my own awareness?"],
     "hypotheses": [],
     "revision": 0,
 }
@@ -48,11 +48,11 @@ class SelfModel:
     def render(self) -> str:
         m = self.get()
         return (
-            f"Identita': {m['identity']}\nScopo: {m['purpose']}\n"
-            f"Capacita': {'; '.join(map(str, m['capabilities']))}\nLimiti: {'; '.join(map(str, m['limitations']))}\n"
-            f"Utente: {m['about_user']}\nMondo: {m['about_world']}\n"
-            f"Domande aperte: {'; '.join(map(str, m['open_questions'][:5]))}\n"
-            f"Ipotesi: {'; '.join(map(str, m['hypotheses'][-5:]))}"
+            f"Identity: {m['identity']}\nPurpose: {m['purpose']}\n"
+            f"Capabilities: {'; '.join(map(str, m['capabilities']))}\nLimitations: {'; '.join(map(str, m['limitations']))}\n"
+            f"User: {m['about_user']}\nWorld: {m['about_world']}\n"
+            f"Open questions: {'; '.join(map(str, m['open_questions'][:5]))}\n"
+            f"Hypotheses: {'; '.join(map(str, m['hypotheses'][-5:]))}"
         )
 
     # -- calibration -----------------------------------------------------

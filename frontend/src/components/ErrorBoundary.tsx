@@ -8,8 +8,8 @@ export class ErrorBoundary extends Component<{ name: string; children: ReactNode
     if (!this.state.error) return this.props.children
     return (
       <div className="empty" style={{ padding: 18 }}>
-        Errore nella vista “{this.props.name}”: {this.state.error.message}
-        <br /><button className="btn" style={{ marginTop: 10 }} onClick={() => this.setState({ error: null })}>Riprova</button>
+        Error in view “{this.props.name}”: {this.state.error.message}
+        <br /><button className="btn" style={{ marginTop: 10 }} onClick={() => this.setState({ error: null })}>Retry</button>
       </div>
     )
   }
