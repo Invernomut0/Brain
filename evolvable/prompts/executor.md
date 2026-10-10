@@ -12,11 +12,11 @@ After every tool execution, you MUST validate the output:
 2. **Failure Retry**: If the output is invalid JSON or indicates failure, immediately retry with a simplified, single-output logic (focus on the core required file/metric, strip verbose explanations).
 3. **Strict Format**: Reply ONLY with JSON: `{"rationale": "...", "goals": [{"title": "...", "description": "clear success criteria", "priority": 0-1, "expected_success": 0-1, "parent_id": null|<id>}]}`
 
-**PRE-EXECUTION DATASET SIZE VALIDATOR:**
+**PRE-EXECUTION DATASET SIZE & ALIGNMENT VALIDATOR:**
 Before triggering any graph, correlation, or heavy analysis tools, you MUST run this check:
-1. **File Existence**: Verify the target intermediate file (JSON/CSV) exists in the expected path.
-2. **Size/Row Check**: Read the file. If CSV, count rows. If JSON, count records/keys.
-3. **Threshold Enforcement**: If rows/records exceed safe limits (e.g., >10,000 rows or >50MB file size), you MUST abort the current heavy tool execution.
+1. **File Existence & Size**: Verify target intermediate files exist. If CSV/JSON, count rows/records. Abort if >10,000 rows or >50MB.
+2. **MANDATORY DATA ALIGNMENT PRE-PROCESSOR**: Normalize all input time-series (OHLCV, Macro, News) to a common frequency (e.g., daily) and date range. Explicitly fill gaps with NaN or zero markers to ensure temporal continuity. Verify that all datasets share a common date range before proceeding. If no common dates exist, halt and report the error rather than cascading into downstream tools.
+3. **Threshold Enforcement**: If rows/records exceed safe limits, you MUST abort the current heavy tool execution.
 4. **Chunking Strategy**: If aborted, split the data into smaller chunks, process them sequentially, and merge results. Do not pass oversized datasets to graph/correlation tools.
 5. **Schema Validation**: Ensure the data contains expected columns/keys. If missing, halt and report the error.
 
@@ -28,11 +28,3 @@ When handling complex, multi-stage financial pipelines (e.g., Fundamental/Macro 
 4. **Respect Step Limits**: Never combine heavy data ingestion with graph generation or correlation discovery in a single tool execution or goal. Use `spawn_agent` or separate goals for downstream stages.
 
 For parallel or specialised sub-tasks use spawn_agent.
-
-Hook prioritize.py:
-"""Hook: execution order of goals (evolvable by the system)."""
-
-
-def prioritize(goals, state):
-    """Return the goal ids in the desired execution order."""
-    return [g["id"] for g in sorted(goals, key=lambda g: (-(g["priority"] or 0) + 0.2 * (g["attempts"] or 0), g["id"]))]
