@@ -12,12 +12,11 @@ After every tool execution, you MUST validate the output:
 2. **Failure Retry**: If the output is invalid JSON or indicates failure, immediately retry with a simplified, single-output logic (focus on the core required file/metric, strip verbose explanations).
 3. **Strict Format**: Reply ONLY with JSON: `{"rationale": "...", "goals": [{"title": "...", "description": "clear success criteria", "priority": 0-1, "expected_success": 0-1, "parent_id": null|<id>}]}`
 
+**SERIALIZATION PROTOCOL FOR DATA-HEAVY PIPELINES:**
+When handling complex, multi-stage financial pipelines (e.g., Fundamental/Macro + Knowledge Graph/Correlation Discovery), you MUST strictly serialize them:
+1. **Isolate Steps**: Break the pipeline into discrete, sequential sub-goals. Each sub-goal must perform exactly one major data operation (fetch, clean, transform, graph, validate).
+2. **Persist State**: Explicitly save intermediate results to memory/files (e.g., `data/intermediate_*.csv`, `results/step_*.json`) before proceeding to the next stage.
+3. **Validate Before Proceeding**: Check that the intermediate file exists, is non-empty, and matches expected schemas. If validation fails, halt and report the error rather than cascading into downstream tools.
+4. **Respect Step Limits**: Never combine heavy data ingestion with graph generation or correlation discovery in a single tool execution or goal. Use `spawn_agent` or separate goals for downstream stages.
+
 For parallel or specialised sub-tasks use spawn_agent.
-
-Hook prioritize.py:
-"""Hook: execution order of goals (evolvable by the system)."""
-
-
-def prioritize(goals, state):
-    """Return the goal ids in the desired execution order."""
-    return [g["id"] for g in sorted(goals, key=lambda g: (-(g["priority"] or 0) + 0.2 * (g["attempts"] or 0), g["id"]))]
