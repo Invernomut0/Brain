@@ -259,6 +259,16 @@ async def propose_hook(ctx: ToolContext, name: str, code: str, test_code: str, r
     return await ctx.brain.evolution.propose_hook(name, code, test_code, reason)
 
 
+async def publish_artifact(ctx: ToolContext, path: str, title: str = "", description: str = ""):
+    art = await ctx.brain.results.publish_artifact(path, title, description, ctx.agent.id, ctx.agent.goal_id)
+    return f"published '{art['title']}' ({art['kind']}, {art['size']} bytes) in the Results panel"
+
+
+async def report_progress(ctx: ToolContext, percent: float, summary: str, milestones: list | None = None):
+    e = await ctx.brain.results.report_progress(percent, summary, milestones, ctx.agent.id, ctx.agent.goal_id)
+    return f"progress recorded: {e['percent']}% toward the root goal"
+
+
 def _builtin_tools() -> list[Tool]:
     T = Tool
     return [
@@ -276,6 +286,8 @@ def _builtin_tools() -> list[Tool]:
         T("wiki_read", "read a wiki page given its id (e.g. 'concepts/sqlite')", {"id": "str"}, wiki_read),
         T("wiki_note", "file a useful answer or discovery in the wiki (permanent note, linkable with [[id]])", {"title": "str", "body": "markdown", "summary": "str?"}, wiki_note),
         T("ask_user", "write to the owner in the chat and WAIT for their reply (wait seconds, default 120, max 300, 0 = do not wait); returns the reply or a no-reply notice", {"message": "str", "wait": "int=120"}, ask_user),
+        T("publish_artifact", "show a workspace file (html page, markdown report, csv/json data, image) in the owner's Results panel", {"path": "workspace-relative path", "title": "str?", "description": "str?"}, publish_artifact),
+        T("report_progress", "record progress toward the ROOT goal in the Results panel (percent 0-100, honest; one-line summary; milestones)", {"percent": "0-100", "summary": "str", "milestones": "list of {title, done}?"}, report_progress),
         T("send_message", "send a message to another live agent", {"to": "agent_id", "text": "str"}, send_message),
         T("spawn_agent", "create a sub-agent with a role and wait for its result", {"role": "str", "task": "str", "system_prompt": "str? (custom role)"}, spawn_agent),
         T("spawn_parallel", "launch up to 4 sub-agents IN PARALLEL and wait for all the results", {"tasks": "list of {role, task, system_prompt?}"}, spawn_parallel),

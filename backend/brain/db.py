@@ -40,6 +40,13 @@ CREATE TABLE IF NOT EXISTS wiki_pages(
   managed TEXT, links TEXT, embedding TEXT);
 CREATE TABLE IF NOT EXISTS agent_names(
   agent_id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE COLLATE NOCASE, role TEXT, style TEXT, created REAL);
+CREATE TABLE IF NOT EXISTS artifacts(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL, agent TEXT, goal_id INTEGER, title TEXT, path TEXT UNIQUE, kind TEXT,
+  description TEXT, size INTEGER, mtime REAL, auto INTEGER DEFAULT 0);
+CREATE TABLE IF NOT EXISTS tool_runs(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL, agent TEXT, goal_id INTEGER, tool TEXT, args TEXT, ok INTEGER, ms INTEGER, output TEXT);
+CREATE TABLE IF NOT EXISTS progress(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL, agent TEXT, goal_id INTEGER, percent REAL, summary TEXT, milestones TEXT, source TEXT);
 """
 
 

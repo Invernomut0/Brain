@@ -14,6 +14,7 @@ from .config import ROOT
 from .core import Brain
 from .names import AgentNameError
 from .projects import ProjectError, ProjectNotFound
+from .results import ArtifactTooLarge, ResultsError
 
 DIST = ROOT / "frontend" / "dist"
 
@@ -80,7 +81,7 @@ def create_app(brain: Brain | None = None) -> FastAPI:
         yield
         await brain.shutdown()
 
-    app = FastAPI(title="Brain", version="0.1.38", lifespan=lifespan)
+    app = FastAPI(title="Brain", version="0.1.39", lifespan=lifespan)
     app.state.brain = brain
     app.add_middleware(
         CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -245,6 +246,47 @@ def create_app(brain: Brain | None = None) -> FastAPI:
         except ProjectNotFound as e:
             raise HTTPException(404, "project not found") from e
         return {"deleted": pid}
+
+    @app.get("/api/v1/progress")
+    async def progress():
+        return brain.results.progress()
+
+    @app.get("/api/v1/artifacts")
+    async def artifacts(limit: int = 200):
+        return {"items": brain.results.artifacts(max(1, min(limit, 500)))}
+
+    @app.get("/api/v1/artifacts/{aid}/raw")
+    async def artifact_raw(aid: int, download: bool = False):
+        try:
+            p, mime = brain.results.open_artifact(aid)
+        except KeyError as e:
+            raise HTTPException(404, "artifact not found") from e
+        except FileNotFoundError as e:
+            raise HTTPException(404, "the file no longer exists in the workspace") from e
+        except ArtifactTooLarge as e:
+            raise HTTPException(413, str(e)) from e
+        except ResultsError as e:
+            raise HTTPException(403, str(e)) from e
+        # agent-made pages run in an opaque origin: they cannot reach the dashboard or its API
+        return FileResponse(p, media_type=mime, filename=p.name if download else None, headers={
+            "Content-Security-Policy": "sandbox allow-scripts", "X-Content-Type-Options": "nosniff", "Cache-Control": "no-store"})
+
+    @app.delete("/api/v1/artifacts/{aid}")
+    async def artifact_delete(aid: int):
+        if not brain.results.delete_artifact(aid):
+            raise HTTPException(404, "artifact not found")
+        return {"deleted": aid}
+
+    @app.get("/api/v1/tool-runs")
+    async def tool_runs(limit: int = 100, tool: str | None = None, agent: str | None = None, ok: bool | None = None):
+        return {"items": brain.results.tool_runs(max(1, min(limit, 500)), tool, agent, ok), "tools": brain.results.tool_names()}
+
+    @app.get("/api/v1/tool-runs/{rid}")
+    async def tool_run(rid: int):
+        run = brain.results.tool_run(rid)
+        if not run:
+            raise HTTPException(404, "tool run not found")
+        return run
 
     @app.get("/api/v1/events")
     async def events(limit: int = 200):

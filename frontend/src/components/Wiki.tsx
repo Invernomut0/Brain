@@ -58,7 +58,7 @@ function inline(text: string, resolve: (t: string) => string | null, open: (id: 
   return out
 }
 
-function Markdown({ text, resolve, open }: { text: string; resolve: (t: string) => string | null; open: (id: string) => void }) {
+export function Markdown({ text, resolve, open }: { text: string; resolve: (t: string) => string | null; open: (id: string) => void }) {
   const inl = (s: string) => inline(s, resolve, open)
   const lines = text.split('\n')
   const blocks: ReactNode[] = []

@@ -81,6 +81,9 @@ class StatusReport:
                 summary=(report["lines"][0] if report["lines"] else "")[:300],
             )
             await self.b.bus.publish("status.report", None, progress=report["progress"], source=report["source"])
+            if report["source"] == "llm":  # the model's estimate also goes on the Results timeline
+                ms = [{"title": t, "done": True} for t in report["done"]] + [{"title": t, "done": False} for t in report["missing"]]
+                await self.b.results.report_progress(report["progress"], report["lines"][0], ms, None, None, source="status")
             return {"facts": f, "report": report, "stale": False}
 
     async def _generate(self, f: dict) -> dict:

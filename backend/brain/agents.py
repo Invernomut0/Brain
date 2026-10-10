@@ -17,8 +17,8 @@ if TYPE_CHECKING:
 
 ROLE_TOOLS: dict[str, list[str] | None] = {
     "executor": None,  # all tools
-    "researcher": ["web_search", "web_fetch", "http_request", "remember", "recall", "wiki_search", "wiki_read", "wiki_note", "read_file", "write_file", "list_files", "python_exec"],
-    "engineer": ["python_exec", "shell_exec", "read_file", "write_file", "list_files", "create_tool", "web_search", "web_fetch", "recall", "remember", "wiki_search", "wiki_read"],
+    "researcher": ["web_search", "web_fetch", "http_request", "remember", "recall", "wiki_search", "wiki_read", "wiki_note", "read_file", "write_file", "list_files", "python_exec", "publish_artifact", "report_progress"],
+    "engineer": ["python_exec", "shell_exec", "read_file", "write_file", "list_files", "create_tool", "web_search", "web_fetch", "recall", "remember", "wiki_search", "wiki_read", "publish_artifact", "report_progress"],
     "evolver": ["propose_prompt", "propose_hook"],
 }
 
@@ -131,11 +131,15 @@ class Agent:
             )
         await self._state("acting", action)
         await b.bus.publish("tool.call", self.id, tool=action, args=_clip(args, 300))
+        t0 = time.time()
         try:
             res = await b.tools.call(ToolContext(b, self), action, args)
             ok, obs = not (isinstance(res, dict) and res.get("ok") is False), _clip(res, 2500)
+            full = res
         except Exception as e:  # noqa: BLE001
             ok, obs = False, f"ERROR {type(e).__name__}: {str(e)[:900]}"
+            full = f"ERROR {type(e).__name__}: {e}"
+        run_id = b.results.record_tool_run(self.id, self.goal_id, action, args, ok, round((time.time() - t0) * 1000), full)
         args_s = json.dumps(args, ensure_ascii=False, default=str)[:160]
         if ok and action in self._fails:
             bad_args, err = self._fails.pop(action)
@@ -145,7 +149,7 @@ class Agent:
             self._fails[action] = (args_s, obs[:140])
             b.lessons.log_failure(action, args_s, obs)
         self.trace.append({"tool": action, "ok": ok, "obs": obs[:300]})
-        await b.bus.publish("tool.result", self.id, tool=action, ok=ok, preview=obs[:200])
+        await b.bus.publish("tool.result", self.id, tool=action, ok=ok, preview=obs[:200], run=run_id)
         return obs
 
     @staticmethod

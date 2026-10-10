@@ -229,6 +229,7 @@ class Orchestrator:
         task = f"GOAL #{goal['id']}: {goal['title']}\n{goal['description']}\n\nBrain's root goal: {self.main_goal()}"
         agent = Agent(b, role, task, goal["id"])
         res = await self.run_agent(agent)
+        await b.results.collect(started, agent.id, goal["id"])  # files written while working show up in the Results panel
         verdict = await self.critique(goal, res, started)
         ok = verdict.get("verdict") == "pass"
         b.selfmodel.resolve_prediction(goal["id"], ok)
@@ -246,6 +247,7 @@ class Orchestrator:
             "episode", f"Goal '{goal['title']}' -> {'succeeded' if ok else 'failed'}: {summary[:400]}", [role], 0.6
         )
         b.memory.journal_add("outcome", f"#{goal['id']} {goal['title']}: {'OK' if ok else 'FAILED'} - {summary[:300]}")
+        await b.results.goal_finished(goal, ok, summary)
 
     async def critique(self, goal: dict, res: dict, since: float = 0.0) -> dict:
         b = self.b

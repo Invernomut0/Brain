@@ -86,6 +86,17 @@ Agents keep a technical id (`critic-4`: used by events, containers and goals) bu
 * **Style**: the *Names* selector in the Agents panel chooses `off` (plain ids), `all` (each role gets styles that fit it) or one of 13 styles (`classic`, `royal`, `corporate`, `cyber`, `fantasy`, `action`, `nonsense`, `memes`, `heroic`, `pirate`, `scifi`, `cozy`, `office`; word lists in `backend/brain/names_data.py`). It applies to agents created from then on.
 * **Choose or roll**: hover an agent and use ✎ to type a name, or ⟳ to roll a new generated one (the id never changes).
 
+### Results (artifacts, tool runs, progress)
+The **Results** tab of the main stage shows what Brain actually produced and how far it got. Agents feed it themselves (the shared protocol tells them to), and the system fills the gaps so it is never empty:
+
+| Section | What it shows | Fed by |
+|---|---|---|
+| **Progress** | ring with the latest percentage toward the root goal, summary, milestones, timeline chart, update list; "Estimate now" asks the model for a fresh estimate. The Main goal card shows the same bar and opens this tab | agents call `report_progress(percent, summary, milestones)`; every finished goal adds a *system* point (the agent's last figure carries forward, or done/total goals when there is none); every status report adds a *status* point |
+| **Artifacts** | list of pages, reports, data and images with a live preview: HTML runs in a sandboxed frame, Markdown is rendered, CSV shown as a table, JSON pretty-printed, images inline; Open / Download / Remove from the list | agents call `publish_artifact(path, title, description)`; presentable files (html, md, csv, json, txt, images, pdf) written while working on a goal are registered automatically when it ends (`auto`) |
+| **Tool runs** | every tool call with arguments, success, duration and the **full output** (up to 20,000 characters; the feed only keeps a short preview), filterable by tool and by ok/failed | recorded for every call an agent makes |
+
+Safety: only registered workspace paths are served, never outside `sandbox/workspace`; files are returned with `Content-Security-Policy: sandbox` and `nosniff`, Markdown/CSV/JSON/text as plain text and HTML only inside an `iframe sandbox="allow-scripts"` without access to the dashboard or its API. Removing an artifact only removes the list entry.
+
 ### Agent avatars
 Each role has an animated avatar (`assets/<Role>.png`: sprite sheets with 3 frames per state; planner, executor, researcher, engineer, critic, reflector, evolver; the service agents `chat`, `status` and `embedding` use the *Reasoner*). The live thoughts panel shows it in the top-right corner of every **active** card (collapsed queued/waiting cards have none). The sheet row follows what the agent is doing: working with a tool, or reasoning (tokens streaming); a card reopened while the agent is queued or waiting shows those rows too. State changes cross-fade between rows with a colour-eased aura, so the avatar never jumps. Sources are separated into full-body frames (shapes found by erosion, scipy), downscaled and re-aligned into `frontend/public/avatars/` by `frontend/scripts/build_avatars.py` (`pip install pillow scipy`, then `python frontend/scripts/build_avatars.py`); `prefers-reduced-motion` freezes them on the first frame.
 
@@ -113,6 +124,7 @@ The header chip **▣ project name** opens the *Projects* dialog. A project is a
 | Neural network (3D / 2D / Off switch) | Mind core (size = awareness index, pulses while the LLM is busy), agents orbiting by depth, Owner / Internet / Sandbox / Memory nodes, custom tools, message & tool-call pulses, live token stream |
 | Goal tree | goal tree on the shared graph canvas ([react-force-graph](https://github.com/vasturiano/react-force-graph)): tidy tree left-to-right in 2D, radial in 3D; colour = status, ring = predicted success, click a node for its details |
 | Agents ↔ Tools | which agent uses which tool (link width = call count), same 2D/3D canvas |
+| Results | progress toward the goal (ring, milestones, timeline), published artifacts with live preview, and every tool run with its full output |
 | Wiki | map of the wiki (links or semantic layout, 2D or 3D) with a page reader |
 | Right panel | awareness gauge + calibration/introspection/success bars, LLM tok/s, CPU, RAM sparklines |
 | Left panel | live agents (only agents already streaming or acting show their text; queued, idle, finished or still waiting for the model ones collapse to the title row, click to expand) and the evolving self-model; the live thoughts panel takes half of the stage by default, the 2D view the other half; background jobs show up as agents too: the status report (`status`), chat replies (`chat`) and embedding calls (`embedding`) |
@@ -137,6 +149,12 @@ See [.env.example](.env.example). The LM Studio model is chosen with `BRAIN_LLM_
 | POST | `/api/v1/projects/new` | `{name, main_goal?, save_current=true}` start a fresh project (422 if the name exists) |
 | POST | `/api/v1/projects/{id}/load` | `{save_current=true}` restore a saved project (404 if unknown) |
 | DELETE | `/api/v1/projects/{id}` | delete a saved project |
+| GET | `/api/v1/progress` | `{latest, milestones, history, goals}`: progress reports toward the root goal (agent / status / system entries) and goal counters |
+| GET | `/api/v1/artifacts` | published artifacts, newest first (`exists` says whether the file is still in the workspace) |
+| GET | `/api/v1/artifacts/{id}/raw` | the file, sandboxed (`?download=1` to save it); 404 unknown, 403 outside the workspace, 413 too large |
+| DELETE | `/api/v1/artifacts/{id}` | remove the list entry (the file stays) |
+| GET | `/api/v1/tool-runs?limit=&tool=&agent=&ok=` | tool calls with a short preview, plus the list of tools seen |
+| GET | `/api/v1/tool-runs/{id}` | one call with its arguments and full output |
 | GET | `/api/v1/memory?q=` | semantic memory search |
 | GET | `/api/v1/memories?q=&kind=&limit=&offset=` | browse memories (newest first) or search them by relevance; returns `items`, per-`kinds` counts and `total` |
 | GET | `/api/v1/status` | measurable facts (goals, tools, memories, awareness index...) plus the last stored status report and a `stale` flag |
@@ -158,7 +176,7 @@ cd backend && ../.venv/bin/python -m pytest -q
 
 ## Layout
 ```
-backend/brain/   core: config, db, bus, llm, sandbox, tools, agents, orchestrator, evolution, selfmodel, memory, status, wiki, projects, api
+backend/brain/   core: config, db, bus, llm, sandbox, tools, agents, orchestrator, evolution, selfmodel, memory, status, wiki, projects, names, results, api
 backend/tests/   pytest suite
 frontend/src/    dashboard (store, hooks, components)
 sandbox/         Containerfile + in-container runners (tool_runner.py, hook_runner.py); workspace/ is the agents' persistent disk

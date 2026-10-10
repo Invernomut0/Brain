@@ -13,6 +13,7 @@
 - Awareness index weights (see `selfmodel.py`) – validate they are meaningful over long runs.
 
 ## Done
+- Results panel: progress toward the goal (agents' `report_progress`, system and status points), artifacts with live preview (`publish_artifact` + automatic registration), full tool-run output.
 - Projects: save / load / new project snapshots (database, wiki, workspace, evolved prompts/hooks) from the header dialog and `/api/v1/projects`.
 - LLM Wiki (`data/wiki`, Karpathy pattern): ingest / query / lint, index + log, vectors from `BRAIN_EMBED_MODEL`, 2D wiki map (links + semantic PCA) with page reader, agent tools `wiki_search/read/note`.
 - Dashboard tabs **Status** (5-line project story, progress toward the main goal, done/missing) and **Memories** (browse, filter by kind, search).

@@ -31,6 +31,17 @@ export interface SelfModel {
 
 export interface BrainEvent { seq: number; ts: number; type: string; agent: string | null; data: Record<string, any> }
 export interface ChatMsg { role: 'user' | 'brain'; text: string; ts: number }
+
+export interface Milestone { title: string; done: boolean }
+export interface ProgressEntry {
+  id: number; ts: number; agent: string | null; goal_id: number | null; percent: number; summary: string
+  milestones: Milestone[]; source: 'agent' | 'status' | 'system'
+}
+export interface Artifact {
+  id: number; ts: number; agent: string | null; goal_id: number | null; title: string; path: string; kind: string
+  description: string; size: number; auto: number; exists: boolean
+}
+export interface ToolRun { id: number; ts: number; agent: string; goal_id: number | null; tool: string; ok: boolean; ms: number; preview: string; size: number }
 export interface JournalEntry { id: number; ts: number; kind: string; text: string }
 export interface Evolution { id: number; ts: number; kind: string; target: string; status: string; reason: string }
 

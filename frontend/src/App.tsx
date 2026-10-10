@@ -10,13 +10,14 @@ import { MainGoalCard, StartOverlay } from './components/MainGoal'
 import { MetricsPanel } from './components/MetricsPanel'
 import { Neural3D } from './components/Neural3D'
 import { Neural2D, ViewOff } from './components/Neural2D'
+import { ResultsView } from './components/Results'
 import { SelfModelPanel } from './components/SelfModelPanel'
 import { ToolGalaxy } from './components/ToolGalaxy'
 import { WikiView } from './components/Wiki'
 import { useBrainSocket } from './hooks/useBrainSocket'
 import { ROLE_COLOR, useBrain } from './store'
 
-const STAGE = { neural: 'Neural network', goals: 'Goal tree', tools: 'Agents ↔ Tools', wiki: 'Wiki' } as const
+const STAGE = { neural: 'Neural network', goals: 'Goal tree', tools: 'Agents ↔ Tools', results: 'Results', wiki: 'Wiki' } as const
 const VMODE_KEY = 'brain.viewmode'
 type VMode = '3d' | '2d' | 'off'
 const VMODES: { id: VMode; label: string; hint: string }[] = [
@@ -33,6 +34,11 @@ export default function App() {
     return h in STAGE ? (h as keyof typeof STAGE) : 'neural'
   })
   const setStage = (s: keyof typeof STAGE) => { history.replaceState(null, '', `#${s}`); setStageState(s) }
+  useEffect(() => {
+    const go = (e: Event) => { const s = (e as CustomEvent<string>).detail; if (s in STAGE) setStage(s as keyof typeof STAGE) }
+    window.addEventListener('brain:goto', go)
+    return () => window.removeEventListener('brain:goto', go)
+  }, [])
   const [dock, setDock] = useState<keyof typeof DOCK>('feed')
   const chat = useBrain((s) => s.chat)
   const chatSeen = useBrain((s) => s.chatSeen)
@@ -60,7 +66,7 @@ export default function App() {
             </div>
           )}
         </div>
-        {stage !== 'wiki' && (
+        {stage !== 'wiki' && stage !== 'results' && (
           <div className="legend">
             {Object.entries(ROLE_COLOR).slice(0, 6).map(([r, c]) => <span key={r}><i style={{ background: c }} />{r}</span>)}
           </div>
@@ -72,6 +78,7 @@ export default function App() {
             {stage === 'neural' && vmode === 'off' && <ViewOff onPick={setVmode} />}
             {stage === 'goals' && <GoalTree />}
             {stage === 'tools' && <ToolGalaxy />}
+            {stage === 'results' && <ResultsView />}
             {stage === 'wiki' && <WikiView />}
           </ErrorBoundary>
         </div>

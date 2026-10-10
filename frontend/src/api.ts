@@ -20,6 +20,7 @@ export interface ProjectInfo { name: string; id: string; saved: boolean; saved_a
 
 export const api = {
   get: <T = unknown>(path: string) => call<T>('GET', path),
+  del: <T = unknown>(path: string) => call<T>('DELETE', path),
   post,
   control: (action: 'start' | 'pause' | 'resume' | 'stop' | 'kill') => post(`/control/${action}`),
   budget: (b: { max_cycles?: number; max_tokens?: number }) => post('/budget', b),

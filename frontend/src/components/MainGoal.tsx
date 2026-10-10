@@ -44,11 +44,16 @@ function MainGoalDialog({ initial, onClose }: { initial: string; onClose: () => 
 
 export function MainGoalCard() {
   const goal = useMainGoal()
+  const progress = useBrain((s) => s.progress)
   const [open, setOpen] = useState(false)
   return (
     <section className="panel goalcard">
       <h3>Main goal <button className="btn mini" onClick={() => setOpen(true)} disabled={!goal} title="Edit the main goal">✎ Edit</button></h3>
       <div className="goalcard-text" title={goal}>{goal || '—'}</div>
+      <div className="goal-progress" onClick={() => window.dispatchEvent(new CustomEvent('brain:goto', { detail: 'results' }))} title={progress ? `${progress.summary}\nClick to open the Results panel` : 'No progress reported yet: open the Results panel'}>
+        <div className="bar"><i style={{ width: `${progress?.percent ?? 0}%` }} /></div>
+        <span>{progress ? `${Math.round(progress.percent)}% toward the goal` : 'no progress reported yet'}</span>
+      </div>
       {open && <MainGoalDialog initial={goal} onClose={() => setOpen(false)} />}
     </section>
   )

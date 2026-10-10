@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type {
   AgentView, BrainEvent, ChatMsg, Control, CustomTool, Evolution, Goal, Health, JournalEntry, Lesson,
-  Metrics, Pulse, SelfModel, SysPoint, ToolInfo,
+  Metrics, ProgressEntry, Pulse, SelfModel, SysPoint, ToolInfo,
 } from './types'
 
 export const ROLE_COLOR: Record<string, string> = {
@@ -63,6 +63,8 @@ interface Store {
   streamTps: Record<string, number>
   thoughtsInset: number  // left px covered by the live-thoughts panel (lets 2D views avoid it)
   wikiRev: number  // bumped on every wiki.update event so the wiki view refetches
+  resultsRev: number  // bumped by tool results, published artifacts and progress reports so the Results views refetch
+  progress: ProgressEntry | null  // latest progress report toward the root goal
   graphMode: '2d' | '3d'  // shared by the goal tree and the wiki graph
   project: { name: string; saved: boolean }  // active project (see the Projects dialog)
   owner: string  // who Brain works for; empty until asked
@@ -86,7 +88,7 @@ export const useBrain = create<Store>((set, get) => ({
   connected: false,
   control: { state: 'idle', cycle: 0, max_cycles: 0, max_tokens: 0 },
   goals: {}, agents: {}, tools: [], customTools: [], toolCalls: {}, activity: {}, pulses: [], events: [], history: [],
-  metrics: EMPTY_METRICS, health: {}, selfmodel: null, journal: [], chat: [], evolutions: [], lessons: [], streams: {}, streamTps: {}, thoughtsInset: 0, wikiRev: 0,
+  metrics: EMPTY_METRICS, health: {}, selfmodel: null, journal: [], chat: [], evolutions: [], lessons: [], streams: {}, streamTps: {}, thoughtsInset: 0, wikiRev: 0, resultsRev: 0, progress: null,
   graphMode: location.hash.endsWith(':3d') || localStorage.getItem('brain.graphmode') === '3d' ? '3d' : '2d',
   project: { name: 'Untitled project', saved: false },
   owner: '',
@@ -130,7 +132,7 @@ export const useBrain = create<Store>((set, get) => ({
       health: s.health ?? {}, selfmodel: s.selfmodel, journal: s.journal, chat: s.chat.map((c: any) => ({ role: c.role, text: c.text, ts: c.ts })),
       evolutions: s.evolutions, events: s.events, lessons: s.lessons ?? [], streams, streamTps,
       project: s.project ? { name: s.project.name, saved: s.project.saved } : { name: 'Untitled project', saved: false },
-      owner: s.owner ?? '', loaded: true,
+      owner: s.owner ?? '', loaded: true, progress: s.progress ?? null, resultsRev: get().resultsRev + 1,
       chatSeen: seenInit(s.chat, get().chatSeen),
       names: s.names ?? {}, naming: s.naming ?? { style: 'all', styles: ['off', 'all'] },
     })
@@ -199,7 +201,9 @@ export const useBrain = create<Store>((set, get) => ({
         patch.toolCalls = { ...st.toolCalls, [key]: (st.toolCalls[key] ?? 0) + 1 }
         break
       }
-      case 'tool.result': addPulse(toolTarget(d.tool), e.agent as string, d.ok ? '#34f5a0' : '#ff4d6d'); break
+      case 'tool.result': addPulse(toolTarget(d.tool), e.agent as string, d.ok ? '#34f5a0' : '#ff4d6d'); patch.resultsRev = st.resultsRev + 1; break
+      case 'artifact.published': patch.resultsRev = st.resultsRev + 1; break
+      case 'progress.update': patch.progress = { ...d, agent: e.agent } as ProgressEntry; patch.resultsRev = st.resultsRev + 1; break
       case 'tool.created': {
         patch.customTools = [...st.customTools.filter((t) => t.name !== d.name), { name: d.name, description: d.description, status: d.passed ? 'active' : 'rejected', calls: 0, failures: 0 }]
         if (d.passed) patch.tools = [...st.tools.filter((t) => t.name !== d.name), { name: d.name, description: d.description, custom: true }]

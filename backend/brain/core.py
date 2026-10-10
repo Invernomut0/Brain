@@ -20,6 +20,7 @@ from .memory import Memory
 from .names import AgentNames
 from .orchestrator import Orchestrator
 from .projects import Projects
+from .results import Results
 from .sandbox import Sandbox
 from .selfmodel import DEFAULT_MODEL, SelfModel
 from .status import StatusReport
@@ -50,6 +51,7 @@ class Brain:
         self.status = StatusReport(self)
         self.wiki = Wiki(self)
         self.projects = Projects(self)
+        self.results = Results(self)
         self.started = time.time()
         self._metrics_task: asyncio.Task | None = None
         self._health: dict = {}
@@ -253,6 +255,7 @@ class Brain:
         return {
             "project": self.projects.current(),
             "owner": self.owner_name,
+            "progress": self.results.latest_progress(),
             "names": self.names.all(),
             "naming": {"style": self.names.style(), "styles": self.names.styles()},
             "control": self.control.snapshot(),
