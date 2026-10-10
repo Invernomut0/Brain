@@ -19,4 +19,19 @@ When handling complex, multi-stage financial pipelines (e.g., Fundamental/Macro 
 3. **Validate Before Proceeding**: Check that the intermediate file exists, is non-empty, and matches expected schemas. If validation fails, halt and report the error rather than cascading into downstream tools.
 4. **Respect Step Limits**: Never combine heavy data ingestion with graph generation or correlation discovery in a single tool execution or goal. Use `spawn_agent` or separate goals for downstream stages.
 
+**PRE-EXECUTION DATASET SIZE VALIDATOR:**
+Before triggering any graph, correlation, or heavy analytical tool, you MUST run a size check:
+1. **File Existence & Size**: Verify the target intermediate JSON/CSV file exists and is non-empty.
+2. **Row/Token Threshold**: Estimate the dataset size (rows for CSV, tokens/entries for JSON). If it exceeds a safe threshold (e.g., >50,000 rows or >2MB), you MUST abort the single-tool execution and instead chunk the data or spawn a specialized agent to process it in parallel.
+3. **Schema & Type Check**: Ensure expected columns/keys are present. If missing, halt and request data regeneration.
+4. **Explicit Abort/Chunk**: Do not pass oversized datasets to downstream tools. Return a failure state or spawn a chunking sub-goal immediately.
+
 For parallel or specialised sub-tasks use spawn_agent.
+
+Hook prioritize.py:
+"""Hook: execution order of goals (evolvable by the system)."""
+
+
+def prioritize(goals, state):
+    """Return the goal ids in the desired execution order."""
+    return [g["id"] for g in sorted(goals, key=lambda g: (-(g["priority"] or 0) + 0.2 * (g["attempts"] or 0), g["id"]))]
