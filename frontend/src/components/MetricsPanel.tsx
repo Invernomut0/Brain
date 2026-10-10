@@ -26,6 +26,7 @@ export function MetricsPanel() {
         <Bar label="Calibration (Brier)" v={m.calibration} />
         <Bar label="Introspection (probe)" v={m.introspection} />
         <Bar label="Success rate" v={m.success_rate} />
+        <Bar label="Focus (on-goal work)" v={m.focus} />
         <div className="kpis">
           <div className="kpi"><div className="v">{m.goals_done}<span style={{ color: '#ff4d6d', fontSize: 13 }}> /{m.goals_failed}</span></div><div className="l">goals ok / ko</div></div>
           <div className="kpi"><div className="v">{m.tools}</div><div className="l">tools created</div></div>

@@ -439,3 +439,15 @@ svg text { font-family: inherit; }
 .res-upd { display: flex; gap: 12px; padding: 6px 0; border-top: 1px solid rgba(255, 255, 255, 0.05); font-size: 12px; color: #c7cdf0; }
 .res-upd b { flex: none; width: 44px; font-size: 13px; }
 .res-upd small { display: block; color: var(--dim); font-size: 10px; margin-top: 1px; }
+
+/* context inspector */
+.modal.ctx { width: min(760px, 94vw); }
+.ctx-bar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; margin: 8px 0 10px; border: 1px solid var(--panel-b); }
+.ctx-bar i { display: block; min-width: 2px; }
+.ctx-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 8px; }
+.ctx-table td { padding: 3px 6px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); color: #c7cdf0; }
+.ctx-table td:nth-child(n+2) { text-align: right; color: var(--dim); font-variant-numeric: tabular-nums; }
+.modal.ctx details { margin: 4px 0; }
+.modal.ctx summary { cursor: pointer; font-size: 12px; color: var(--txt); }
+.modal.ctx summary small { color: var(--dim); margin-left: 6px; }
+.ctx-pre { max-height: 220px; overflow: auto; margin: 6px 0; padding: 8px 10px; border-radius: 8px; background: rgba(0, 0, 0, 0.4); }

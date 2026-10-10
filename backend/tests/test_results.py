@@ -114,7 +114,7 @@ async def test_goal_end_adds_a_system_entry_that_carries_the_agent_percentage(br
 
 def test_agents_get_the_results_tools():
     assert "publish_artifact" in ROLE_TOOLS["researcher"] and "report_progress" in ROLE_TOOLS["engineer"]
-    assert ROLE_TOOLS["executor"] is None  # executors have every tool
+    assert "propose_prompt" not in ROLE_TOOLS["executor"] and "publish_artifact" in ROLE_TOOLS["executor"]  # executors never evolve prompts
 
 
 def test_results_endpoints(settings):

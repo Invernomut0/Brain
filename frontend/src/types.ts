@@ -17,7 +17,7 @@ export interface ToolInfo { name: string; description: string; custom: boolean }
 export interface CustomTool { name: string; description: string; status: string; calls: number; failures: number }
 
 export interface Metrics {
-  awareness_index: number; calibration: number | null; introspection: number | null; success_rate: number
+  awareness_index: number; calibration: number | null; introspection: number | null; focus: number | null; success_rate: number
   goals_done: number; goals_failed: number; tools: number; journal: number; memories: number
   agents_spawned: number; selfmodel_revision: number; evolutions_applied: number; evolutions_rolled_back: number; lessons: number
 }

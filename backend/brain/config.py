@@ -44,6 +44,7 @@ class Settings:
     max_tokens: int = field(default_factory=lambda: _int("BRAIN_MAX_TOKENS", 0))
     max_parallel_agents: int = field(default_factory=lambda: _int("BRAIN_MAX_PARALLEL_AGENTS", 3))
     agent_max_steps: int = field(default_factory=lambda: _int("BRAIN_AGENT_MAX_STEPS", 14))
+    agent_context_chars: int = field(default_factory=lambda: _int("BRAIN_AGENT_CONTEXT_CHARS", 24000))  # raw step history sent per request (~3.6 chars/token)
     reflect_every: int = field(default_factory=lambda: _int("BRAIN_REFLECT_EVERY", 3))
     evolve_every: int = field(default_factory=lambda: _int("BRAIN_EVOLVE_EVERY", 5))
 

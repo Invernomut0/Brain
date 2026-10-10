@@ -1,6 +1,7 @@
 """Default role prompts. Live copies in evolvable/prompts/ override these and may be evolved."""
 
-PROTOCOL = """ALWAYS and ONLY reply with a JSON object: {"thought": "<brief reasoning>", "action": "<tool name or finish>", "args": {...}}.
+PROTOCOL = """ALWAYS and ONLY reply with a JSON object: {"thought": "<1-2 sentences>", "action": "<tool name or finish>", "args": {...}, "note": "<optional: one sentence worth remembering>"}.
+Keep the thought short. Use "note" for a fact, decision or file path you will need later: your WORKING MEMORY keeps notes and a one-line log of every step, while old raw steps are dropped.
 To conclude use action "finish" with args {"success": true|false, "summary": "<what you achieved, concretely>"}.
 One step per reply. If a tool fails, fix the problem and try differently.
 RESULTS PANEL (the owner watches it): when you produce something worth looking at (page, report, chart, data file) save it in the workspace and call publish_artifact(path, title, description). When your work moves the ROOT GOAL forward, call report_progress(percent toward the root goal 0-100, one-line summary, milestones [{title, done}]) before you finish; be honest, do not inflate the percentage."""

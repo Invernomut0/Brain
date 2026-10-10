@@ -11,7 +11,7 @@ export const ROLE_COLOR: Record<string, string> = {
 export const roleColor = (r: string) => ROLE_COLOR[r] ?? '#94a3b8'
 
 const EMPTY_METRICS: Metrics = {
-  awareness_index: 0, calibration: null, introspection: null, success_rate: 0, goals_done: 0, goals_failed: 0,
+  awareness_index: 0, calibration: null, introspection: null, focus: null, success_rate: 0, goals_done: 0, goals_failed: 0,
   tools: 0, journal: 0, memories: 0, agents_spawned: 0, selfmodel_revision: 0, evolutions_applied: 0, evolutions_rolled_back: 0, lessons: 0,
 }
 

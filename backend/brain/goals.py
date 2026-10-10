@@ -1,6 +1,7 @@
 """Goal tree persistence."""
 from __future__ import annotations
 
+import json
 import re
 import time
 
@@ -15,12 +16,12 @@ class GoalStore:
     async def add(
         self, title: str, description: str = "", parent_id: int | None = None,
         priority: float = 0.5, expected_success: float | None = None, role: str = "executor",
-        status: str = "pending",
+        status: str = "pending", depends_on: list[int] | None = None,
     ) -> int:
         now = time.time()
         gid = self.db.execute(
-            "INSERT INTO goals(parent_id,title,description,priority,expected_success,created,updated,role,status) VALUES(?,?,?,?,?,?,?,?,?)",
-            (parent_id, title[:200], description[:2000], priority, expected_success, now, now, role, status),
+            "INSERT INTO goals(parent_id,title,description,priority,expected_success,created,updated,role,status,depends_on) VALUES(?,?,?,?,?,?,?,?,?,?)",
+            (parent_id, title[:200], description[:2000], priority, expected_success, now, now, role, status, json.dumps(sorted({int(i) for i in depends_on or []}))),
         )
         if expected_success is not None:
             self.db.execute("INSERT OR REPLACE INTO predictions(goal_id,p,ts) VALUES(?,?,?)", (gid, expected_success, now))
@@ -29,6 +30,16 @@ class GoalStore:
 
     def get(self, gid: int) -> dict:
         return self.db.one("SELECT * FROM goals WHERE id=?", (gid,)) or {}
+
+    def deps(self, goal: dict) -> list[int]:
+        try:
+            return [int(i) for i in json.loads(goal.get("depends_on") or "[]")]
+        except (ValueError, TypeError):
+            return []
+
+    def ready(self, goal: dict) -> bool:
+        """A goal waits until the goals it depends on have finished (successfully or not)."""
+        return all((self.get(d) or {"status": "done"})["status"] in ("done", "failed", "cancelled") for d in self.deps(goal))
 
     async def set_status(self, gid: int, status: str, result: str | None = None) -> None:
         self.db.execute(

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { api } from '../api'
 import { roleColor, useBrain } from '../store'
 import { useNow } from '../hooks/useNow'
+import { ContextDialog } from './ContextDialog'
 
 const STYLE_LABEL: Record<string, string> = {
   off: 'Off (plain ids)', all: 'All styles (by role)', classic: 'Classic', royal: 'Royal', corporate: 'Corporate', cyber: 'Cyber',
@@ -18,6 +19,7 @@ export function AgentList() {
   const [draft, setDraft] = useState('')
   const [err, setErr] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [ctxFor, setCtxFor] = useState<string | null>(null)
   const working = (s: string) => s === 'thinking' || s === 'acting'
   const toggle = (id: string) => setExpanded((p) => { const n = new Set(p); if (!n.delete(id)) n.add(id); return n })
   const list = Object.values(agents).filter((a) => !a.endedAt || now - a.endedAt < 30000)
@@ -58,6 +60,7 @@ export function AgentList() {
                   <span className="name-tools" onClick={(e) => e.stopPropagation()}>
                     <button title="Choose a name" onClick={() => { setDraft(name ?? ''); setEditing(a.id) }}>✎</button>
                     <button title="Roll a new random name" onClick={() => run(() => api.renameAgent(a.id, null))}>⟳</button>
+                    <button title="Show what this agent sees (context inspector)" onClick={() => setCtxFor(a.id)}>◧</button>
                   </span>
                 )}
               </div>
@@ -66,6 +69,7 @@ export function AgentList() {
           )
         })}
       </div>
+      {ctxFor && <ContextDialog id={ctxFor} name={names[ctxFor] ?? ctxFor} onClose={() => setCtxFor(null)} />}
     </section>
   )
 }

@@ -59,7 +59,19 @@ class Database:
         self._lock = threading.Lock()
         with self._lock:
             self._conn.executescript(SCHEMA)
+            self._migrate()
             self._conn.commit()
+
+    def _migrate(self) -> None:
+        """Columns added after the first release (CREATE TABLE IF NOT EXISTS does not add them to old databases)."""
+        for table, column, ddl in (
+            ("goals", "depends_on", "TEXT DEFAULT '[]'"),
+            ("prompt_versions", "focus_sum", "REAL DEFAULT 0"),
+            ("prompt_versions", "focus_n", "INTEGER DEFAULT 0"),
+        ):
+            have = {r[1] for r in self._conn.execute(f"PRAGMA table_info({table})")}
+            if column not in have:
+                self._conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
 
     def execute(self, sql: str, params: Iterable[Any] = ()) -> int:
         with self._lock:
@@ -94,6 +106,7 @@ class Database:
             finally:
                 src.close()
             self._conn.executescript(SCHEMA)  # snapshots from older versions may lack newer tables
+            self._migrate()
             self._conn.commit()
 
     # --- key/value helpers -------------------------------------------------

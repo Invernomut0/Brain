@@ -97,6 +97,21 @@ The **Results** tab of the main stage shows what Brain actually produced and how
 
 Safety: only registered workspace paths are served, never outside `sandbox/workspace`; files are returned with `Content-Security-Policy: sandbox` and `nosniff`, Markdown/CSV/JSON/text as plain text and HTML only inside an `iframe sandbox="allow-scripts"` without access to the dashboard or its API. Removing an artifact only removes the list entry.
 
+### Context engineering (keeping agents on focus)
+Every agent step rebuilds its prompt from scratch, so what the model sees stays small, relevant and ordered (`backend/brain/context.py`, `agents.py`):
+
+| Piece | What it does |
+|---|---|
+| **System prompt per role** | role prompt + only the tools that role needs (executor: core set; researcher and engineer: focused subsets; evolver: only `propose_prompt` / `propose_hook`, which no other role sees) + shared protocol + the lessons **relevant to the task** (not the latest 8). The self-model is no longer injected |
+| **Pinned task** | goal, root goal and a **project state** (done goals with their results, what is blocked, sibling goals) always stays at the top |
+| **Working memory** | facts the agent records with `note(text, pin?)`, files and tools used and a compact summary of old steps replace blind truncation; the last raw steps are kept within `BRAIN_AGENT_CONTEXT_CHARS` (default 24000 characters) |
+| **Mission reminder** | the last lines of every request restate the goal, the step counter (`step 7/20`) and what is still missing; at the step limit the agent is forced to finish with what it has |
+| **Goal hand-off** | the planner can declare `depends_on` between goals; a goal only starts when its dependencies are done and receives their results in its project state |
+| **Prompt hygiene** | evolved role prompts must pass `validate_prompt` (80-1600 characters, no pasted code/JSON contracts); at startup `audit_prompts()` resets any prompt that does not |
+| **Focus metric** | the critic returns `focus` (0-1) combined with run statistics (repeated calls, steps used); it appears in the Metrics panel and is stored per prompt version: a new prompt whose focus drops is rolled back like a failed one |
+
+**Context inspector**: the ◧ button of an agent in the list opens a dialog with the size of every section in tokens (stacked bar), the step counter and the full text sent with the latest request. API: `GET /api/v1/agents/{id}/context` (404 until the agent has run a step).
+
 ### Agent avatars
 Each role has an animated avatar (`assets/<Role>.png`: sprite sheets with 3 frames per state; planner, executor, researcher, engineer, critic, reflector, evolver; the service agents `chat`, `status` and `embedding` use the *Reasoner*). The live thoughts panel shows it in the top-right corner of every **active** card (collapsed queued/waiting cards have none). The sheet row follows what the agent is doing: working with a tool, or reasoning (tokens streaming); a card reopened while the agent is queued or waiting shows those rows too. State changes cross-fade between rows with a colour-eased aura, so the avatar never jumps. Sources are separated into full-body frames (shapes found by erosion, scipy), downscaled and re-aligned into `frontend/public/avatars/` by `frontend/scripts/build_avatars.py` (`pip install pillow scipy`, then `python frontend/scripts/build_avatars.py`); `prefers-reduced-motion` freezes them on the first frame.
 
@@ -131,7 +146,7 @@ The header chip **▣ project name** opens the *Projects* dialog. A project is a
 | Dock | live event feed, chat with Brain (the Chat tab shows a badge with the number of Brain messages waiting for your reply), project status, memories, journal, lessons, tools, evolution history |
 
 ## Configuration (`.env`)
-See [.env.example](.env.example). The LM Studio model is chosen with `BRAIN_LLM_MODEL` (an id from `GET /v1/models`; if it is not loaded, Brain logs a warning and falls back to the first chat model). Also: embeddings model, budgets (`BRAIN_MAX_CYCLES`, `BRAIN_MAX_TOKENS`), reflection/evolution cadence, sandbox limits.
+See [.env.example](.env.example). The LM Studio model is chosen with `BRAIN_LLM_MODEL` (an id from `GET /v1/models`; if it is not loaded, Brain logs a warning and falls back to the first chat model). Also: embeddings model, budgets (`BRAIN_MAX_CYCLES`, `BRAIN_MAX_TOKENS`), per-step context size (`BRAIN_AGENT_CONTEXT_CHARS`), reflection/evolution cadence, sandbox limits.
 
 ## API (v1)
 | Method | Path | Description |
@@ -142,6 +157,7 @@ See [.env.example](.env.example). The LM Studio model is chosen with `BRAIN_LLM_
 | POST | `/api/v1/reset` | `{confirm: "RESET"}` - factory reset: wipes database, sandbox workspace/tools, prompts and hooks (back to defaults) |
 | POST | `/api/v1/chat` | `{text}` — talk to Brain (may create a goal) |
 | GET, PUT | `/api/v1/naming` | `{style}`: agent naming style (`off`, `all` or one of the 13 styles above) |
+| GET | `/api/v1/agents/{id}/context` | what the agent saw at its latest step: `step`, `max_steps`, `tokens`, `chars`, `budget_chars`, `sections[]`, `messages[]` (404 if none yet) |
 | PUT | `/api/v1/agents/{id}/name` | `{name}` set a name by hand (422 if empty, longer than 40 or taken); `{name: null}` rolls a new generated one |
 | GET, PUT | `/api/v1/owner` | `{name}`: who Brain works for. Asked by the dashboard when unknown (first run, after a reset); stored with the project and used in every prompt, question and the wiki; renaming also updates the self-model |
 | GET | `/api/v1/projects` | `{current, items}`: active project and saved snapshots (newest first, with stats) |

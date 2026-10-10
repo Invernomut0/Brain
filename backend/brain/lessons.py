@@ -56,6 +56,24 @@ class Lessons:
         top = self.top(n)
         return "\n".join(f"- {t}" for t in top) if top else ""
 
+    def relevant(self, task: str, k: int = 3) -> list[str]:
+        """Lessons that share vocabulary with the task (plus the most repeated format rule); the most frequent ones if none match."""
+        items = self.all()
+        want = _tokens(task)
+        scored = []
+        for it in items:
+            toks = _tokens(it["text"])
+            overlap = len(want & toks) / (len(toks) or 1)
+            scored.append((overlap + 0.05 * min(it["count"], 5), overlap, it))
+        scored.sort(key=lambda s: s[0], reverse=True)
+        picked = [s[2] for s in scored if s[1] > 0.08][:k]
+        fmt = next((i for i in sorted(items, key=lambda i: -i["count"]) if i["kind"] == "format" and i not in picked), None)
+        if fmt:
+            picked.append(fmt)
+        if not picked:
+            picked = sorted(items, key=lambda i: (i["count"], i["ts"]), reverse=True)[:k]
+        return [i["text"] for i in picked]
+
     # -- failure log, distilled by the Reflector --------------------------
     def log_failure(self, tool: str, args: str, error: str, resolved: bool = False) -> None:
         log = self.db.kv_get("failures", [])

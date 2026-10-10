@@ -20,6 +20,30 @@ from .sandbox import MARK, Sandbox
 NAME_RE = re.compile(r"^[a-z][a-z0-9_]{1,30}$")
 GIT = ["git", "-c", "user.name=Brain", "-c", "user.email=brain@local"]
 
+PROMPT_MIN, PROMPT_MAX = 80, 1600
+PATH_RE = re.compile(r"\b[\w-]+/[\w./-]*\.(?:csv|json|parquet|py|txt|md|html|xlsx|db)\b")
+CONTRACT_WORD = {"planner": "goals", "critic": "verdict", "reflector": "journal"}
+
+
+def validate_prompt(role: str, text: str) -> str | None:
+    """Why a prompt must not be installed (None when it is fine). Role prompts stay short, generic and in their own contract:
+    task-specific protocols, other roles' output formats and pasted hook code are what made executors lose focus."""
+    if role not in DEFAULTS:
+        return f"unknown role {role}"
+    if not PROMPT_MIN <= len(text) <= PROMPT_MAX:
+        return f"prompt length must be {PROMPT_MIN}-{PROMPT_MAX} chars (it is {len(text)}): keep role prompts short and generic"
+    if role in CONTRACT_WORD and ("JSON" not in text or CONTRACT_WORD[role] not in text):
+        return f"prompt must keep the {role} JSON output contract (with the '{CONTRACT_WORD[role]}' field)"
+    if role != "planner" and ('"rationale"' in text or '"goals"' in text):
+        return "prompt contains the planner's output format: each role keeps only its own contract"
+    if re.search(r"^\s*def (prioritize|build_context)\b", text, re.M) or "Hook prioritize" in text:
+        return "prompt contains pasted hook code"
+    if PATH_RE.search(text):
+        return "prompt mentions specific workspace files (%s): role prompts must be task-independent" % PATH_RE.search(text).group(0)
+    if text.upper().count("MANDATORY") > 1:
+        return "prompt stacks several 'MANDATORY' protocols: keep one short, general rule per change"
+    return None
+
 
 class Evolution:
     def __init__(self, settings: Settings, db: Database, bus: EventBus, sandbox: Sandbox):
@@ -87,19 +111,38 @@ class Evolution:
             return p.read_text()
         return DEFAULTS.get(role, DEFAULTS["executor"])
 
-    def record_run(self, role: str, success: bool) -> None:
+    def record_run(self, role: str, success: bool, focus: float | None = None) -> None:
         self.db.execute(
-            "UPDATE prompt_versions SET runs=runs+1, successes=successes+? WHERE role=? AND active=1",
-            (1 if success else 0, role),
+            "UPDATE prompt_versions SET runs=runs+1, successes=successes+?, focus_sum=focus_sum+?, focus_n=focus_n+? WHERE role=? AND active=1",
+            (1 if success else 0, focus or 0.0, 0 if focus is None else 1, role),
         )
 
+    async def audit_prompts(self) -> list[str]:
+        """Put back the default of every role prompt that breaks the rules (e.g. evolved before they existed)."""
+        fixed = []
+        for role, default in DEFAULTS.items():
+            p = self.s.evolvable_dir / "prompts" / f"{role}.md"
+            problem = validate_prompt(role, p.read_text()) if p.exists() else None
+            if problem:
+                await self.reset_prompt(role, f"audit: {problem}"[:200])
+                fixed.append(role)
+        return fixed
+
+    async def reset_prompt(self, role: str, reason: str = "reset to default") -> None:
+        (self.s.evolvable_dir / "prompts" / f"{role}.md").write_text(DEFAULTS[role])
+        sha = await self._commit(f"evolve: reset prompt {role}: {reason[:80]}")
+        cur = self.db.one("SELECT version FROM prompt_versions WHERE role=? ORDER BY version DESC LIMIT 1", (role,))
+        self.db.execute("UPDATE prompt_versions SET active=0 WHERE role=?", (role,))
+        self.db.execute(
+            "INSERT INTO prompt_versions(role,version,sha,reason,created) VALUES(?,?,?,?,?)",
+            (role, (cur["version"] + 1) if cur else 1, sha, reason[:300], time.time()),
+        )
+        await self._log("prompt", role, sha, "reset", reason, "back to the default prompt")
+
     async def propose_prompt(self, role: str, text: str, reason: str) -> dict:
-        if role not in DEFAULTS:
-            return {"ok": False, "error": f"unknown role {role}"}
-        if not (80 <= len(text) <= 4000):
-            return {"ok": False, "error": "prompt length must be 80-4000 chars"}
-        if role in ("planner", "critic", "reflector") and "JSON" not in text:
-            return {"ok": False, "error": "prompt must keep the JSON output contract"}
+        problem = validate_prompt(role, text)
+        if problem:
+            return {"ok": False, "error": problem}
         cur = self.db.one("SELECT * FROM prompt_versions WHERE role=? AND active=1", (role,))
         (self.s.evolvable_dir / "prompts" / f"{role}.md").write_text(text)
         sha = await self._commit(f"evolve: prompt {role}: {reason[:80]}")
@@ -113,7 +156,7 @@ class Evolution:
         return {"ok": True, "version": version}
 
     async def check_rollbacks(self) -> list[str]:
-        """Revert a prompt version whose success rate is clearly worse than its predecessor."""
+        """Revert a prompt version whose success rate or focus (on-goal steps) is clearly worse than its predecessor."""
         rolled = []
         for row in self.db.query("SELECT * FROM prompt_versions WHERE active=1 AND version>1 AND runs>=5"):
             prev = self.db.one(
@@ -121,12 +164,18 @@ class Evolution:
             )
             if not prev or prev["runs"] < 3:
                 continue
-            if row["successes"] / row["runs"] < prev["successes"] / prev["runs"] - 0.15:
+            worse_success = row["successes"] / row["runs"] < prev["successes"] / prev["runs"] - 0.15
+            worse_focus = (
+                row["focus_n"] >= 4 and prev["focus_n"] >= 3
+                and row["focus_sum"] / row["focus_n"] < prev["focus_sum"] / prev["focus_n"] - 0.15
+            )
+            if worse_success or worse_focus:
+                why = "focus regression" if worse_focus and not worse_success else "performance regression"
                 await self._git("checkout", prev["sha"], "--", f"evolvable/prompts/{row['role']}.md")
                 sha = await self._commit(f"evolve: rollback prompt {row['role']} v{row['version']}")
                 self.db.execute("UPDATE prompt_versions SET active=0 WHERE role=?", (row["role"],))
                 self.db.execute("UPDATE prompt_versions SET active=1 WHERE id=?", (prev["id"],))
-                await self._log("prompt", row["role"], sha, "rolled_back", "performance regression", f"v{row['version']}")
+                await self._log("prompt", row["role"], sha, "rolled_back", why, f"v{row['version']}")
                 rolled.append(row["role"])
         return rolled
 

@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from .agents import Agent
 from .config import ROOT_GOAL
+from .context import project_state
 from .control import Halt
 from .llm import LLMError
 
@@ -106,7 +107,7 @@ class Orchestrator:
     async def _fill_slots(self) -> None:
         b = self.b
         while len(self.running) < max(1, b.settings.max_parallel_agents):
-            pending = [g for g in b.goals.pending() if g["id"] not in self.running]
+            pending = [g for g in b.goals.pending() if g["id"] not in self.running and b.goals.ready(g)]
             if len(pending) < 2 and (self._plan_task is None or self._plan_task.done()):
                 self._plan_task = asyncio.create_task(self._plan_safe())
             if not pending:
@@ -190,7 +191,8 @@ class Orchestrator:
             f"JOURNAL:\n" + "\n".join(j["text"][:200] for j in b.memory.journal_recent(3)) +
             f"\n\nRELEVANT MEMORY:\n" + "\n".join(m["text"][:200] for m in memories) +
             f"\n\nRECENT CHAT WITH {b.owner.upper()}:\n{chat}\n\nTOOLS: {', '.join(b.tools.all())}\n{hook_ctx}\n\n"
-            f"Propose 1 to 3 new goals. Possible values for 'role': executor, researcher, engineer."
+            f"Propose 1 to 3 new goals. Possible values for 'role': executor, researcher, engineer. "
+            f"A goal may add \"depends_on\": [ids of existing goals whose results it needs]: it waits for them and receives their results."
             + (f"\n\nLESSONS LEARNED (avoid these mistakes):\n{b.lessons.render(8)}" if b.lessons.count() else "")
         )
         try:
@@ -211,9 +213,10 @@ class Orchestrator:
                 continue
             parent = g.get("parent_id")
             role = g.get("role") if g.get("role") in VALID_ROLES else "executor"
+            deps = [int(i) for i in (g.get("depends_on") or []) if str(i).isdigit() and int(i) in valid_ids]
             await b.goals.add(
                 title, str(g.get("description", "")), parent if parent in valid_ids else root_id,
-                _num(g.get("priority"), 0.5), _num(g.get("expected_success"), 0.5), role,
+                _num(g.get("priority"), 0.5), _num(g.get("expected_success"), 0.5), role, depends_on=deps,
             )
             added += 1
         await b.bus.publish("agent.end", "planner", success=added > 0, summary=str(out.get("rationale", ""))[:300], steps=1)
@@ -227,13 +230,19 @@ class Orchestrator:
         await b.goals.set_status(goal["id"], "active")
         role = goal.get("role") or "executor"
         task = f"GOAL #{goal['id']}: {goal['title']}\n{goal['description']}\n\nBrain's root goal: {self.main_goal()}"
+        state = await project_state(b, goal, f"{goal['title']} {goal['description']}")
+        if state:
+            task += f"\n\nPROJECT STATE (verified facts: build on them, do not redo them):\n{state}"
         agent = Agent(b, role, task, goal["id"])
         res = await self.run_agent(agent)
         await b.results.collect(started, agent.id, goal["id"])  # files written while working show up in the Results panel
         verdict = await self.critique(goal, res, started)
         ok = verdict.get("verdict") == "pass"
         b.selfmodel.resolve_prediction(goal["id"], ok)
-        b.evolution.record_run(role, ok)
+        focus = verdict.get("focus")
+        b.evolution.record_run(role, ok, focus)
+        if focus is not None:
+            b.selfmodel.add_focus(focus)
         summary = res["summary"]
         if ok:
             await b.goals.set_status(goal["id"], "done", summary)
@@ -255,10 +264,15 @@ class Orchestrator:
         await b.bus.publish("agent.spawn", cid, role="critic", parent=None, goal_id=goal["id"], task="evaluation")
         evidence = "\n".join(f"- {t['tool']} ok={t['ok']}: {t['obs'][:200]}" for t in res["trace"])
         replies = [e["data"]["text"][:300] for e in b.bus.recent(80, ["chat.message"]) if e["ts"] >= since and e["data"].get("role") == "user"]
+        stats = res.get("stats") or {}
+        calls = max(1, stats.get("calls", 0))
+        repeat, errors = stats.get("repeats", 0) / calls, stats.get("errors", 0) / calls
         prompt = (
             f"GOAL: {goal['title']}\nCRITERIA: {goal['description']}\n\nAGENT'S STATEMENT (success={res['success']}): "
-            f"{res['summary']}\n\nEVIDENCE (tools used):\n{evidence or '(none)'}"
+            f"{res['summary']}\n\nRUN STATS: {stats.get('steps', 0)} steps, {stats.get('calls', 0)} tool calls, "
+            f"{stats.get('repeats', 0)} repeated identical calls, {stats.get('errors', 0)} failed calls.\n\nEVIDENCE (tools used):\n{evidence or '(none)'}"
             + (f"\n\n{b.owner.upper()}'S MESSAGES RECEIVED DURING EXECUTION:\n" + "\n".join(f"- {r}" for r in replies) if replies else "")
+            + '\n\nAlso add to the JSON "focus": 0-1 = the share of the agent\'s work that served THIS goal (0 if it wandered, drifted to other topics or repeated itself).'
         )
         try:
             v = await b.llm.chat_json(
@@ -267,8 +281,11 @@ class Orchestrator:
             )
         except LLMError:
             v = {"verdict": "pass" if res["success"] else "fail", "score": 0.5, "feedback": "critic unavailable"}
+        judged = _num(v.get("focus"), -1.0)
+        # the critic's view, discounted by visible wandering; without a critic only the run statistics are left
+        v["focus"] = round(judged * (1 - 0.5 * repeat), 3) if judged >= 0 else round(max(0.0, 1 - 0.6 * repeat - 0.4 * errors), 3)
         await b.bus.publish("agent.end", cid, success=v.get("verdict") == "pass", summary=str(v.get("feedback", ""))[:300], steps=1)
-        await b.bus.publish("goal.verdict", cid, goal_id=goal["id"], **{k: v.get(k) for k in ("verdict", "score", "feedback")})
+        await b.bus.publish("goal.verdict", cid, goal_id=goal["id"], **{k: v.get(k) for k in ("verdict", "score", "feedback", "focus")})
         return v
 
     # ------------------------------------------------------------ reflection

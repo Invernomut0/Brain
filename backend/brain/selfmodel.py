@@ -72,6 +72,11 @@ class SelfModel:
         scores.append(round(max(0.0, min(1.0, score)), 3))
         self.db.kv_set("probe_scores", scores[-50:])
 
+    def add_focus(self, score: float) -> None:
+        scores = self.db.kv_get("focus_scores", [])
+        scores.append(round(max(0.0, min(1.0, score)), 3))
+        self.db.kv_set("focus_scores", scores[-50:])
+
     def metrics(self) -> dict:
         q = lambda sql: self.db.one(sql)["c"]  # noqa: E731
         done = q("SELECT COUNT(*) c FROM goals WHERE status='done'")
@@ -86,6 +91,8 @@ class SelfModel:
         probes = self.db.kv_get("probe_scores", [])
         introspection = round(sum(probes[-10:]) / len(probes[-10:]), 3) if probes else None
         calibration = self.calibration()
+        focus_scores = self.db.kv_get("focus_scores", [])
+        focus = round(sum(focus_scores[-10:]) / len(focus_scores[-10:]), 3) if focus_scores else None
         success_rate = done / (done + failed) if (done + failed) else 0.0
         index = (
             0.22 * (calibration if calibration is not None else 0.0)
@@ -99,6 +106,7 @@ class SelfModel:
             "awareness_index": round(index, 3),
             "calibration": calibration,
             "introspection": introspection,
+            "focus": focus,
             "success_rate": round(success_rate, 3),
             "goals_done": done, "goals_failed": failed, "tools": tools,
             "journal": journal, "memories": memories, "agents_spawned": agents,

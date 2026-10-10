@@ -81,7 +81,7 @@ def create_app(brain: Brain | None = None) -> FastAPI:
         yield
         await brain.shutdown()
 
-    app = FastAPI(title="Brain", version="0.1.39", lifespan=lifespan)
+    app = FastAPI(title="Brain", version="0.1.40", lifespan=lifespan)
     app.state.brain = brain
     app.add_middleware(
         CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -287,6 +287,13 @@ def create_app(brain: Brain | None = None) -> FastAPI:
         if not run:
             raise HTTPException(404, "tool run not found")
         return run
+
+    @app.get("/api/v1/agents/{agent_id}/context")
+    async def agent_context(agent_id: str):
+        ctx = brain.contexts.get(agent_id)
+        if not ctx:
+            raise HTTPException(404, "no context recorded for this agent (only recent agents, while the server runs)")
+        return ctx
 
     @app.get("/api/v1/events")
     async def events(limit: int = 200):

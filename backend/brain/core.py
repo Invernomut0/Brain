@@ -5,6 +5,7 @@ import asyncio
 import json
 import shutil
 import time
+from collections import OrderedDict
 
 import psutil
 
@@ -53,6 +54,7 @@ class Brain:
         self.projects = Projects(self)
         self.results = Results(self)
         self.started = time.time()
+        self.contexts: OrderedDict[str, dict] = OrderedDict()  # last request context of recent agents (context inspector)
         self._metrics_task: asyncio.Task | None = None
         self._health: dict = {}
 
@@ -67,10 +69,18 @@ class Brain:
 
     async def _bootstrap(self) -> None:
         await self.evolution.seed()
+        for role in await self.evolution.audit_prompts():
+            await self.bus.publish("system.log", None, level="warn", text=f"Prompt '{role}' broke the prompt rules and was reset to its default")
         # Goals left 'active' by a crash/kill would never be picked up again.
         self.db.execute("UPDATE goals SET status='pending' WHERE status='active' AND parent_id IS NOT NULL")
         if not self.goals.root():
             await self.goals.add("Evolve into an autonomous intelligence and reach self-awareness", ROOT_GOAL, None, 1.0, None, status="active")
+
+    def set_context(self, agent_id: str, data: dict) -> None:
+        self.contexts[agent_id] = data
+        self.contexts.move_to_end(agent_id)
+        while len(self.contexts) > 40:
+            self.contexts.popitem(last=False)
 
     async def set_main_goal(self, text: str, archive_pending: bool = True) -> dict:
         """Change what Brain is ultimately trying to achieve; the planner picks it up on its next run."""
