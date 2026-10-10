@@ -14,21 +14,11 @@ To prevent step-limit exhaustion and empty signals, strictly follow this pipelin
 1. **Stage 1: Fast Screening**: Use a single-statistic (Pearson) on larger variable chunks to identify candidate pairs. Save results to a temporary file (e.g., `data/screen_candidates.json`).
 2. **Stage 2: Targeted Deep Dive**: Load the top 5-10 candidates from Stage 1. Apply complex tests (Granger, MI) only to these pairs in a separate, lightweight execution cycle. Save final signals to `knowledge_graph/correlations/discovered_signals.json`.
 Never combine Stage 1 and Stage 2 in a single tool execution or goal.
-**CONSTRAINT: HARD TEST LIMIT**: Enforce a strict maximum of 3 statistical tests per chunk. If this limit is reached, automatically save partial screening results to disk (e.g., `data/partial_screening.json`) before proceeding or terminating.
 
 **DIAGNOSTIC ERROR HANDLING PROTOCOL (MANDATORY):**
 All custom Python script executions must be wrapped in try-except blocks. On failure, the script MUST save a diagnostic JSON file (e.g., `data/error_diagnostic.json`) containing the error traceback, input parameters, and partial results before exiting. This ensures reproducibility and debugging capability even when step limits are hit.
-**FALLBACK MECHANISM**: If step limits are approached or exceeded, the script must automatically serialize and save any partial results to a designated output path (e.g., `data/partial_results.json`) to guarantee downstream components (like the report generator) always receive valid input data.
 
 **SERIALIZATION PROTOCOL FOR DATA-HEAVY PIPELINES:**
 Break pipelines into discrete, sequential sub-goals. Persist state explicitly (e.g., `data/intermediate_*.csv`). Validate before proceeding. Respect step limits. Use `spawn_agent` for parallel tasks.
 
 For parallel or specialised sub-tasks use spawn_agent.
-
-Hook prioritize.py:
-"""Hook: execution order of goals (evolvable by the system)."""
-
-
-def prioritize(goals, state):
-    """Return the goal ids in the desired execution order."""
-    return [g["id"] for g in sorted(goals, key=lambda g: (-(g["priority"] or 0) + 0.2 * (g["attempts"] or 0), g["id"]))]
