@@ -2,6 +2,8 @@
 
 Requests carry a priority: chat with the owner (priority 0) preempts agent work (priority 1) so he gets
 an answer as soon as possible; preempted agent requests are transparently restarted afterwards.
+Among agent requests the deepest sub-agent goes first: its parent is blocked waiting for it, so finishing the
+branches that are already open beats starting one more step of everybody (otherwise a spawn_parallel tree starves).
 """
 from __future__ import annotations
 
@@ -79,13 +81,13 @@ class _Gate:
         self.n = max(1, n)
         self.in_use = 0
         self.chat_pending = 0
-        self._q: list[tuple[int, int, asyncio.Future]] = []
+        self._q: list[tuple[int, int, int, asyncio.Future]] = []  # (priority, -depth, arrival, future)
         self._seq = 0
 
-    async def acquire(self, prio: int) -> None:
+    async def acquire(self, prio: int, depth: int = 0) -> None:
         fut: asyncio.Future = asyncio.get_running_loop().create_future()
         self._seq += 1
-        heapq.heappush(self._q, (prio, self._seq, fut))
+        heapq.heappush(self._q, (prio, -depth, self._seq, fut))
         self.dispatch()
         try:
             await fut
@@ -100,7 +102,7 @@ class _Gate:
 
     def dispatch(self) -> None:
         while self._q and self.in_use < self.n:
-            prio, _, fut = self._q[0]
+            prio, _, _, fut = self._q[0]
             if prio > CHAT_PRIORITY and self.chat_pending:
                 return
             heapq.heappop(self._q)
@@ -111,6 +113,10 @@ class _Gate:
 
     def blocked_for(self, prio: int) -> bool:
         return self.in_use >= self.n or (prio > CHAT_PRIORITY and self.chat_pending > 0)
+
+    def ahead(self, prio: int, depth: int = 0) -> int:
+        """Requests that run before a new one with this priority and depth: the ones generating plus the ones queued before it."""
+        return self.in_use + sum(1 for p, d, _, f in self._q if (p, d) <= (prio, -depth) and not f.cancelled())
 
 
 @dataclass(eq=False)
@@ -159,14 +165,17 @@ class LLMClient:
 
     # ---------------------------------------------------------------- slots
     @asynccontextmanager
-    async def _slot(self, agent: str | None, prio: int = AGENT_PRIORITY):
+    async def _slot(self, agent: str | None, prio: int = AGENT_PRIORITY, depth: int = 0):
         """Concurrency slot; tells the UI when a request waits behind others or behind a chat reply."""
         self.queued += 1
         if self._gate.blocked_for(prio):
-            detail = "paused: priority to the chat" if prio > CHAT_PRIORITY and self._gate.chat_pending else "queued on LM Studio"
+            if prio > CHAT_PRIORITY and self._gate.chat_pending:
+                detail = "paused: priority to the chat"
+            else:
+                detail = f"queued on LM Studio ({self._gate.ahead(prio, depth)} ahead)"
             await self.bus.publish("agent.state", agent, state="queued", detail=detail)
         try:
-            await self._gate.acquire(prio)
+            await self._gate.acquire(prio, depth)
         finally:
             self.queued -= 1
         try:
@@ -278,6 +287,7 @@ class LLMClient:
         messages: list[dict],
         *,
         priority: int = AGENT_PRIORITY,
+        depth: int = 0,
         temperature: float = 0.7,
         max_tokens: int = 1500,
         agent: str | None = None,
@@ -293,7 +303,7 @@ class LLMClient:
             "max_tokens": max_tokens + REASONING_HEADROOM,
             "stream": True,
         }
-        async with self._slot(agent, priority):
+        async with self._slot(agent, priority, depth):
             call = _Call(priority, agent)
             self._active.add(call)
             self.busy += 1

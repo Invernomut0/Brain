@@ -42,12 +42,12 @@ function ThoughtCard({ a }: { a: AgentView }) {
         <i className="live-dot" />
         <b>{name ?? a.role}</b>
         <span className="live-id">{name ? a.role : a.id}</span>
-        <span className={`live-mode ${waiting ? 'wait' : ''}`}>{thinking ? (waiting ? 'answer - waiting for llm\u2026' : reasoning ? 'reasoning' : 'answer') : queued ? 'queued' : a.state === 'acting' ? `tool \u00b7 ${a.detail}` : a.state}</span>
+        <span className={`live-mode ${waiting ? 'wait' : ''}`}>{thinking ? (waiting ? 'answer - waiting for llm\u2026' : reasoning ? 'reasoning' : 'answer') : queued ? (a.detail || 'queued') : a.state === 'acting' ? `tool \u00b7 ${a.detail}` : a.state}</span>
         {thinking && tps > 0 && <span className="live-tps">{tps.toFixed(1)} tok/s</span>}
         <span className="live-chev">{open ? '\u25be' : '\u25b8'}</span>
       </div>
       <div className="live-body" ref={body}>
-        {shown || <span className="live-wait">{queued ? 'waiting for an LM Studio slot\u2026' : 'waiting for the model\u2026'}</span>}
+        {shown || <span className="live-wait">{queued ? `waiting for an LM Studio slot\u2026 ${a.detail.match(/\(.*\)/)?.[0] ?? ''}` : 'waiting for the model\u2026'}</span>}
         {thinking && <span className="live-caret" />}
       </div>
     </div>

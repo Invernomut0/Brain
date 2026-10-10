@@ -4,6 +4,8 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import re
+import shlex
 import shutil
 from dataclasses import dataclass
 
@@ -12,6 +14,19 @@ from .config import Settings
 MAX_OUT = 8000
 MARK = "__BRAIN_RESULT__"
 KILLED_EXIT_CODES = (124, 137)  # `timeout` / SIGKILL
+
+# Virtual environments live in the container (not in the workspace: no thousands of files to list, publish or snapshot);
+# they vanish with the container, so a missing one is simply recreated.
+VENV_ROOT = "/opt/venvs"
+DEFAULT_VENV = "default"
+VENV_RE = re.compile(r"^[a-z][a-z0-9_-]{0,23}$")
+PACKAGE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._\-\[\],]*(\s?(==|>=|<=|~=|!=|<|>)\s?[A-Za-z0-9.*+!_\-]+(,\s?(==|>=|<=|~=|!=|<|>)\s?[A-Za-z0-9.*+!_\-]+)*)?$")
+NO_VENV = "BRAIN_NO_VENV"
+# Runs `cmd` with the venv first on PATH; pip refuses to touch the system site-packages.
+_GUARD = (
+    'v="$1"; shift; [ -x "$v/bin/python" ] || { echo BRAIN_NO_VENV >&2; exit 97; }; '
+    'export VIRTUAL_ENV="$v" PATH="$v/bin:$PATH" PIP_REQUIRE_VIRTUALENV=1; exec "$@"'
+)
 
 
 @dataclass
@@ -35,6 +50,16 @@ class ExecResult:
 
 class SandboxError(RuntimeError):
     pass
+
+
+class VenvError(SandboxError):
+    """The virtual environment is missing or its name/packages are not valid."""
+
+
+def venv_dir(name: str) -> str:
+    if not VENV_RE.match(str(name)):
+        raise VenvError("invalid venv name: 1-24 characters, lowercase letters, digits, '_' or '-', starting with a letter")
+    return f"{VENV_ROOT}/{name}"
 
 
 class Sandbox:
@@ -140,11 +165,41 @@ class Sandbox:
     async def python(self, code: str, timeout: float | None = None) -> ExecResult:
         return await self.run(["python", "-c", code], timeout=timeout)
 
+    async def in_venv(self, cmd: list[str], venv: str = DEFAULT_VENV, *, timeout: float | None = None, stdin: str | None = None) -> ExecResult:
+        """Run `cmd` with the virtual environment activated; VenvError when it does not exist."""
+        res = await self.run(["sh", "-c", _GUARD, "sh", venv_dir(venv), *cmd], timeout=timeout, stdin=stdin)
+        if res.exit_code == 97 and NO_VENV in res.stderr:
+            raise VenvError(f"virtual environment '{venv}' does not exist: call create_venv(name='{venv}') first")
+        return res
+
+    async def python_in_venv(self, code: str, venv: str = DEFAULT_VENV, timeout: float | None = None) -> ExecResult:
+        return await self.in_venv(["python", "-c", code], venv, timeout=timeout)
+
+    async def create_venv(self, name: str = DEFAULT_VENV, packages: list[str] | None = None, timeout: float = 600) -> ExecResult:
+        """Create the venv if missing (it sees the image's preinstalled packages) and pip-install `packages` into it."""
+        d = venv_dir(name)
+        pkgs = [str(p).strip() for p in (packages or [])]
+        bad = [p for p in pkgs if not PACKAGE_RE.match(p)]
+        if bad:
+            raise VenvError(f"invalid package spec {bad[0]!r}: use names with optional version pins such as 'pandas' or 'pandas>=2'")
+        script = f'[ -x "{d}/bin/python" ] || python -m venv --system-site-packages "{d}" || exit 1; '
+        if pkgs:
+            script += f'"{d}/bin/python" -m pip install --no-cache-dir --disable-pip-version-check -q {" ".join(shlex.quote(p) for p in pkgs)} || exit 2; '
+        script += f'"{d}/bin/python" -c "import sys; print(sys.version.split()[0])"'
+        return await self.run(["sh", "-c", script], timeout=timeout)
+
+    async def _prefer_venv(self, cmd: list[str], **kw) -> ExecResult:
+        """Agent-made tools run in the default venv when it exists (so its packages are importable)."""
+        try:
+            return await self.in_venv(cmd, DEFAULT_VENV, **kw)
+        except VenvError:
+            return await self.run(cmd, **kw)
+
     async def shell(self, command: str, timeout: float | None = None) -> ExecResult:
         return await self.run(["sh", "-c", command], timeout=timeout)
 
     async def run_tool(self, name: str, args: dict) -> dict:
-        res = await self.run(["python", "/runner/tool_runner.py", name], stdin=json.dumps(args))
+        res = await self._prefer_venv(["python", "/runner/tool_runner.py", name], stdin=json.dumps(args))
         for line in reversed(res.stdout.splitlines()):
             if line.startswith(MARK):
                 return json.loads(line[len(MARK):])
@@ -152,11 +207,12 @@ class Sandbox:
 
     async def pytest(self, path: str, *, evolvable: bool = False) -> ExecResult:
         env = [] if evolvable else ["env", "PYTHONPATH=/workspace/tools"]
-        return await self.run([*env, "python", "-m", "pytest", "-x", "-q", "--no-header", "-p", "no:cacheprovider", path])
+        cmd = [*env, "python", "-m", "pytest", "-x", "-q", "--no-header", "-p", "no:cacheprovider", path]
+        return await (self.run(cmd) if evolvable else self._prefer_venv(cmd))
 
     async def kill_all(self) -> None:
-        """Hard-stop (kill switch): remove every container started by Brain; the next call recreates it."""
-        r = await self._exec(self._base() + ["ps", "-aq", "--filter", "label=brain=1"], 15)
+        """Hard-stop (kill switch): remove this instance's container; the next call recreates it (stop.sh removes them all)."""
+        r = await self._exec(self._base() + ["ps", "-aq", "--filter", "label=brain=1", "--filter", f"name=^{self.name}$"], 15)
         ids = r.stdout.split()
         if ids:
             await self._exec(self._base() + ["rm", "-f", *ids], 40)

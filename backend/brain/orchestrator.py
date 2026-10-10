@@ -51,13 +51,14 @@ class Orchestrator:
         finally:
             self.live.pop(agent.id, None)
 
-    async def spawn_and_run(self, parent: Agent, role: str, task: str, system_prompt: str = "") -> str:
+    async def spawn_and_run(self, parent: Agent, role: str, task: str, system_prompt: str = "", announce: bool = True) -> str:
         if parent.depth >= MAX_DEPTH:
             return "ERROR: maximum sub-agent depth reached"
         if len(self.live) >= MAX_LIVE_AGENTS:
             return "ERROR: too many live agents"
         child = Agent(self.b, role[:20] or "executor", task, parent.goal_id, parent=parent,
                       system_prompt=system_prompt, max_steps=8)
+        await parent._state("acting", f"waiting for sub-agent {child.id}") if announce else None
         res = await self.run_agent(child)
         return f"[{child.id}] success={res['success']} :: {res['summary']}"
 
@@ -66,8 +67,9 @@ class Orchestrator:
         specs = [s for s in specs if isinstance(s, dict) and s.get("task")][:4]
         if not specs:
             return "ERROR: pass tasks=[{role, task}, ...] (max 4)"
+        await parent._state("acting", f"waiting for {len(specs)} sub-agents")
         results = await asyncio.gather(*(
-            self.spawn_and_run(parent, str(s.get("role", "executor")), str(s["task"]), str(s.get("system_prompt", "")))
+            self.spawn_and_run(parent, str(s.get("role", "executor")), str(s["task"]), str(s.get("system_prompt", "")), announce=False)
             for s in specs
         ))
         return "\n".join(results)

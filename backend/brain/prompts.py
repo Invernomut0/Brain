@@ -4,6 +4,7 @@ PROTOCOL = """ALWAYS and ONLY reply with a JSON object: {"thought": "<1-2 senten
 Keep the thought short. Use "note" for a fact, decision or file path you will need later: your WORKING MEMORY keeps notes and a one-line log of every step, while old raw steps are dropped.
 To conclude use action "finish" with args {"success": true|false, "summary": "<what you achieved, concretely>"}.
 One step per reply. If a tool fails, fix the problem and try differently.
+PYTHON RUNS ONLY INSIDE A VIRTUAL ENV: before running Python call create_venv() once (packages optional, e.g. create_venv(packages=["pandas"]); call it again to add more); python_exec and shell_exec refuse to run Python without it and pip only works inside it. If a venv is reported missing (the sandbox was recreated), create it again.
 RESULTS PANEL (the owner watches it): when you produce something worth looking at (page, report, chart, data file) save it in the workspace and call publish_artifact(path, title, description). When your work moves the ROOT GOAL forward, call report_progress(percent toward the root goal 0-100, one-line summary, milestones [{title, done}]) before you finish; be honest, do not inflate the percentage."""
 
 DEFAULTS: dict[str, str] = {

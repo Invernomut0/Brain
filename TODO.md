@@ -14,6 +14,7 @@
 - Awareness index weights (see `selfmodel.py`) – validate they are meaningful over long runs.
 
 ## Done
+- Mandatory virtual environments: `create_venv` tool, `python_exec`/`shell_exec` run inside the venv and refuse Python without it, pip blocked outside a venv.
 - Context engineering: per-role prompts and tools, working memory with token-budget trimming, mission reminder + forced finish, project state with `depends_on`, prompt validation/audit, focus metric with rollback, context inspector.
 - Results panel: progress toward the goal (agents' `report_progress`, system and status points), artifacts with live preview (`publish_artifact` + automatic registration), full tool-run output.
 - Projects: save / load / new project snapshots (database, wiki, workspace, evolved prompts/hooks) from the header dialog and `/api/v1/projects`.

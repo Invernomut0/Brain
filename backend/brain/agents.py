@@ -27,14 +27,14 @@ if TYPE_CHECKING:
 # Tools every working role may use. The evolution tools (propose_prompt / propose_hook) belong to the evolver only:
 # an executor changing prompts mid-task is how role prompts get polluted.
 CORE_TOOLS = [
-    "web_search", "web_fetch", "http_request", "python_exec", "shell_exec", "read_file", "write_file", "list_files",
+    "web_search", "web_fetch", "http_request", "create_venv", "python_exec", "shell_exec", "read_file", "write_file", "list_files",
     "remember", "recall", "wiki_search", "wiki_read", "wiki_note", "ask_user", "send_message", "spawn_agent",
     "spawn_parallel", "create_tool", "publish_artifact", "report_progress",
 ]
 ROLE_TOOLS: dict[str, list[str]] = {
     "executor": CORE_TOOLS,
-    "researcher": ["web_search", "web_fetch", "http_request", "remember", "recall", "wiki_search", "wiki_read", "wiki_note", "read_file", "write_file", "list_files", "python_exec", "publish_artifact", "report_progress"],
-    "engineer": ["python_exec", "shell_exec", "read_file", "write_file", "list_files", "create_tool", "web_search", "web_fetch", "recall", "remember", "wiki_search", "wiki_read", "publish_artifact", "report_progress"],
+    "researcher": ["web_search", "web_fetch", "http_request", "remember", "recall", "wiki_search", "wiki_read", "wiki_note", "read_file", "write_file", "list_files", "create_venv", "python_exec", "publish_artifact", "report_progress"],
+    "engineer": ["create_venv", "python_exec", "shell_exec", "read_file", "write_file", "list_files", "create_tool", "web_search", "web_fetch", "recall", "remember", "wiki_search", "wiki_read", "publish_artifact", "report_progress"],
     "evolver": ["propose_prompt", "propose_hook"],
 }
 
@@ -140,7 +140,7 @@ class Agent:
                 msgs = self._build()
                 await self._state("thinking")
                 try:
-                    step = await b.llm.chat_json(msgs, agent=self.id, purpose=f"{self.role} step {self.steps}", temperature=0.6, max_tokens=1800, retries=1)
+                    step = await b.llm.chat_json(msgs, agent=self.id, depth=self.depth, purpose=f"{self.role} step {self.steps}", temperature=0.6, max_tokens=1800, retries=1)
                 except LLMError as e:
                     if "valid JSON" not in str(e) or format_errors >= 2:
                         raise

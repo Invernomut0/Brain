@@ -40,6 +40,42 @@ async def test_agents_wait_while_a_chat_is_pending_even_with_a_free_slot():
     assert gate.in_use == 2
 
 
+async def test_deepest_sub_agent_goes_first_so_a_spawn_tree_finishes():
+    gate = _Gate(1)
+    await gate.acquire(AGENT_PRIORITY)  # someone is generating
+    order: list[str] = []
+
+    async def take(name: str, depth: int):
+        await gate.acquire(AGENT_PRIORITY, depth)
+        order.append(name)
+        gate.release()
+
+    tasks = [asyncio.create_task(take(n, d)) for n, d in [("top-1", 0), ("top-2", 0), ("child", 1), ("grandchild", 2), ("child-2", 1)]]
+    await asyncio.sleep(0.05)
+    assert gate.ahead(AGENT_PRIORITY, 2) == 2  # the generating one + the grandchild queued before it
+    gate.release()
+    await asyncio.wait_for(asyncio.gather(*tasks), 5)
+    assert order == ["grandchild", "child", "child-2", "top-1", "top-2"]  # depth first, arrival order within a depth
+
+
+async def test_chat_still_beats_any_sub_agent():
+    gate = _Gate(1)
+    await gate.acquire(AGENT_PRIORITY)
+    order: list[str] = []
+
+    async def take(name: str, prio: int, depth: int):
+        await gate.acquire(prio, depth)
+        order.append(name)
+        gate.release()
+
+    deep = asyncio.create_task(take("deep", AGENT_PRIORITY, 2))
+    chat = asyncio.create_task(take("chat", CHAT_PRIORITY, 0))
+    await asyncio.sleep(0.05)
+    gate.release()
+    await asyncio.wait_for(asyncio.gather(deep, chat), 5)
+    assert order == ["chat", "deep"]
+
+
 async def test_preempt_aborts_only_agent_requests(brain):
     agent_call = _Call(AGENT_PRIORITY, "exec-1", runner=asyncio.create_task(asyncio.sleep(60)))
     chat_call = _Call(CHAT_PRIORITY, "voice", runner=asyncio.create_task(asyncio.sleep(60)))

@@ -67,6 +67,19 @@ async def test_spawn_many_validates_input(brain):
     assert (await brain.orchestrator.spawn_many(parent, ["x", {"role": "executor"}])).startswith("ERROR")
 
 
+async def test_spawn_parallel_children_all_report_back_with_a_real_model(brain):
+    """Sub-agents sharing one LLM slot must all run to completion and the parent must get every result."""
+    brain.llm._gate.n = 1  # worst case: a single LM Studio slot for all of them
+    parent = Agent(brain, "executor", "coordinate")
+    task = 'Do nothing else: immediately reply with action "finish" and args {"success": true, "summary": "%s"}.'
+    specs = [{"role": "executor", "task": task % tag} for tag in ("alpha", "beta", "gamma")]
+    out = await asyncio.wait_for(brain.orchestrator.spawn_many(parent, specs), 600)
+    lines = out.splitlines()
+    assert len(lines) == 3 and all("success=True" in l for l in lines), out
+    assert all(tag in out for tag in ("alpha", "beta", "gamma"))
+    assert not brain.orchestrator.live  # every child was released
+
+
 async def test_user_reply_reopens_failed_goal_and_reaches_waiting_agent(brain):
     root = await brain.goals.add("root", "", None, 1.0, None, status="active")
     gid = await brain.goals.add("Benchmark with Lorenzo", "ask for a threshold", root, 0.5, 0.5)

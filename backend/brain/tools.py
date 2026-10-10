@@ -12,12 +12,15 @@ from urllib.parse import parse_qs, unquote, urlparse
 import httpx
 from bs4 import BeautifulSoup
 
+from .sandbox import DEFAULT_VENV, VenvError
+
 if TYPE_CHECKING:
     from .agents import Agent
     from .core import Brain
 
 NAME_RE = re.compile(r"^[a-z][a-z0-9_]{2,30}$")
 UA = {"User-Agent": "Mozilla/5.0 (Brain autonomous agent)"}
+PY_CMD_RE = re.compile(r"\b(python[0-9.]*|pip[0-9.]*|pytest|uv|poetry|conda)\b|\.py\b")
 
 
 @dataclass
@@ -147,12 +150,33 @@ async def http_request(ctx: ToolContext, method: str, url: str, headers: dict | 
 
 
 # ---------------------------------------------------------------- sandbox & files
-async def python_exec(ctx: ToolContext, code: str):
-    return (await ctx.brain.sandbox.python(code)).brief()
+async def python_exec(ctx: ToolContext, code: str, venv: str = DEFAULT_VENV):
+    try:
+        return (await ctx.brain.sandbox.python_in_venv(code, venv)).brief()
+    except VenvError as e:
+        return f"ERROR: {e}"
 
 
-async def shell_exec(ctx: ToolContext, command: str):
-    return (await ctx.brain.sandbox.shell(command)).brief()
+async def shell_exec(ctx: ToolContext, command: str, venv: str = DEFAULT_VENV):
+    sb = ctx.brain.sandbox
+    try:
+        return (await sb.in_venv(["sh", "-c", command], venv)).brief()
+    except VenvError as e:
+        if PY_CMD_RE.search(command) or venv != DEFAULT_VENV:
+            return f"ERROR: {e}"
+    return (await sb.shell(command)).brief()  # no venv yet and nothing Python-related in the command
+
+
+async def create_venv(ctx: ToolContext, name: str = DEFAULT_VENV, packages: list | None = None):
+    """Create the virtual environment (idempotent) and install packages into it."""
+    try:
+        res = await ctx.brain.sandbox.create_venv(name, [str(p) for p in packages or []])
+    except VenvError as e:
+        return f"ERROR: {e}"
+    if not res.ok:
+        return f"ERROR: venv '{name}' not ready\n{res.brief()}"
+    py = res.stdout.strip().splitlines()[-1] if res.stdout.strip() else "?"
+    return f"venv '{name}' ready (Python {py}), packages: {', '.join(packages or []) or 'none added'}. python_exec and shell_exec now run inside it"
 
 
 async def read_file(ctx: ToolContext, path: str):
@@ -275,8 +299,9 @@ def _builtin_tools() -> list[Tool]:
         T("web_search", "search the internet (DuckDuckGo); returns title/url/snippet", {"query": "str", "max_results": "int=6"}, web_search),
         T("web_fetch", "download a web page and extract its text and links", {"url": "str", "max_chars": "int=6000"}, web_fetch),
         T("http_request", "generic HTTP request (GET/POST/...) to any URL/API", {"method": "str", "url": "str", "headers": "dict?", "body": "json?"}, http_request),
-        T("python_exec", "run Python code in the Podman sandbox (network enabled, persistent /workspace)", {"code": "str"}, python_exec),
-        T("shell_exec", "run a shell command in the Podman sandbox", {"command": "str"}, shell_exec),
+        T("create_venv", "create (or update) a Python virtual environment in the sandbox and pip-install packages into it; REQUIRED before python_exec / shell_exec can run Python (default name 'default'; call again to add packages)", {"name": "str='default'", "packages": "list of pip specs?, e.g. ['pandas>=2', 'matplotlib']"}, create_venv),
+        T("python_exec", "run Python code inside a virtual environment of the Podman sandbox (network enabled, persistent /workspace); needs create_venv first", {"code": "str", "venv": "str='default'"}, python_exec),
+        T("shell_exec", "run a shell command in the Podman sandbox; python, pip and pytest resolve to the virtual environment (system pip is blocked)", {"command": "str", "venv": "str='default'"}, shell_exec),
         T("read_file", "read a workspace file (relative path; = /workspace in the sandbox)", {"path": "str"}, read_file),
         T("write_file", "write a workspace file (relative path, e.g. 'tools/x.py'; = /workspace in the sandbox)", {"path": "str", "content": "str"}, write_file),
         T("list_files", "list the workspace files (relative path)", {"path": "str='.'"}, list_files),
